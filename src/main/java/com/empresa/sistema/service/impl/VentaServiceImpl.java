@@ -17,6 +17,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.empresa.sistema.dto.response.PageResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +36,7 @@ public class VentaServiceImpl implements VentaService {
     private final ProductoRepository productoRepository;
     private final InventarioRepository inventarioRepository;
     private final ConfiguracionIvaRepository configuracionIvaRepository;
+    private final FacturaRepository facturaRepository;
 
     @Override
     public List<VentaResponseDTO> listarTodas() {
@@ -54,7 +60,24 @@ public class VentaServiceImpl implements VentaService {
         ConfiguracionIva iva = configuracionIvaRepository.findByActivoTrue()
                 .orElseThrow(() -> new RuntimeException("Configuración IVA no encontrada"));
 
-        String numeroVenta = "VTA-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        // VALIDAR STOCK ANTES DE PROCESAR
+        for (var detalleDto : dto.getDetalles()) {
+            Producto producto = productoRepository.findById(detalleDto.getIdProducto())
+                    .orElseThrow(() -> new RuntimeException("Producto no encontrado: " + detalleDto.getIdProducto()));
+            Inventario inventario = inventarioRepository
+                    .findByProducto_IdProductoAndSucursal_IdSucursal(
+                            detalleDto.getIdProducto(), dto.getIdSucursal())
+                    .orElseThrow(() -> new RuntimeException(
+                            "Producto '" + producto.getNombre() + "' no tiene inventario en esta sucursal"));
+            if (inventario.getCantidad() < detalleDto.getCantidad()) {
+                throw new RuntimeException(
+                        "Stock insuficiente para '" + producto.getNombre() +
+                                "'. Stock disponible: " + inventario.getCantidad() +
+                                ", solicitado: " + detalleDto.getCantidad());
+            }
+        }
+
+        String numeroVenta = "V-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMddHHmmss"));
 
         Venta venta = Venta.builder()
                 .numeroVenta(numeroVenta).cliente(cliente).usuario(usuario)
@@ -70,6 +93,16 @@ public class VentaServiceImpl implements VentaService {
         for (var detalleDto : dto.getDetalles()) {
             Producto producto = productoRepository.findById(detalleDto.getIdProducto())
                     .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+            // DESCONTAR STOCK
+            Inventario inventario = inventarioRepository
+                    .findByProducto_IdProductoAndSucursal_IdSucursal(
+                            detalleDto.getIdProducto(), dto.getIdSucursal())
+                    .get();
+            inventario.setCantidad(inventario.getCantidad() - detalleDto.getCantidad());
+            inventario.setUltimaActualizacion(LocalDateTime.now());
+            inventarioRepository.save(inventario);
+
             BigDecimal subtotalLinea = producto.getPrecioVenta()
                     .multiply(BigDecimal.valueOf(detalleDto.getCantidad()));
             subtotal = subtotal.add(subtotalLinea);
@@ -94,9 +127,56 @@ public class VentaServiceImpl implements VentaService {
 
     @Override
     public void anular(Integer id) {
-        Venta v = ventaRepository.findById(id).orElseThrow(() -> new RuntimeException("Venta no encontrada: " + id));
+        Venta v = ventaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Venta no encontrada: " + id));
+
+        if (v.getEstado() == Venta.EstadoVenta.ANULADA) {
+            throw new RuntimeException("La venta ya está anulada");
+        }
+
+        // DEVOLVER STOCK
+        List<DetalleVenta> detalles = detalleVentaRepository.findByVenta_IdVenta(id);
+        for (DetalleVenta detalle : detalles) {
+            inventarioRepository
+                    .findByProducto_IdProductoAndSucursal_IdSucursal(
+                            detalle.getProducto().getIdProducto(),
+                            v.getSucursal().getIdSucursal())
+                    .ifPresent(inv -> {
+                        inv.setCantidad(inv.getCantidad() + detalle.getCantidad());
+                        inv.setUltimaActualizacion(LocalDateTime.now());
+                        inventarioRepository.save(inv);
+                    });
+        }
+
+        // ANULAR FACTURA SI EXISTE
+        facturaRepository.findByVenta_IdVenta(id).ifPresent(factura -> {
+            factura.setEstado(Factura.EstadoFactura.ANULADA);
+            facturaRepository.save(factura);
+        });
+
         v.setEstado(Venta.EstadoVenta.ANULADA);
         ventaRepository.save(v);
+    }
+
+    @Override
+    public PageResponseDTO<VentaResponseDTO> buscarPaginado(String search, Integer idSucursal, String estado, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("fechaVenta").descending());
+        Venta.EstadoVenta estadoEnum = (estado != null && !estado.isBlank()) ?
+                Venta.EstadoVenta.valueOf(estado) : null;
+        Page<Venta> resultado = ventaRepository.buscarPaginado(
+                (search != null && !search.isBlank()) ? search : null,
+                idSucursal,
+                estadoEnum,
+                pageable);
+        return PageResponseDTO.<VentaResponseDTO>builder()
+                .contenido(resultado.getContent().stream().map(this::toDTO).collect(Collectors.toList()))
+                .paginaActual(resultado.getNumber())
+                .totalPaginas(resultado.getTotalPages())
+                .totalElementos(resultado.getTotalElements())
+                .tamanioPagina(resultado.getSize())
+                .primera(resultado.isFirst())
+                .ultima(resultado.isLast())
+                .build();
     }
 
     @Override

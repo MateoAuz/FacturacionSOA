@@ -6,7 +6,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "factura")
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Factura {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,17 +23,18 @@ public class Factura {
     @Column(name = "numero_secuencial", nullable = false, unique = true, length = 17)
     private String numeroSecuencial;
 
+    @Builder.Default
     @Column(name = "fecha_emision", nullable = false)
     private LocalDateTime fechaEmision = LocalDateTime.now();
 
     @Column(name = "pdf_path", length = 255)
     private String pdfPath;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 10)
     private EstadoFactura estado = EstadoFactura.EMITIDA;
 
-    // Campos SRI Fase 2
     @Column(name = "clave_acceso", length = 49)
     private String claveAcceso;
 
@@ -49,6 +53,7 @@ public class Factura {
     @Column(name = "fecha_autorizacion")
     private LocalDateTime fechaAutorizacion;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "estado_sri", nullable = false, length = 15)
     private EstadoSri estadoSri = EstadoSri.NO_ENVIADO;

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Dashboard')}"></head>
+<body>
+<div th:replace="~{layout :: sidebar('dashboard')}"></div>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Dashboard</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div style="background: linear-gradient(135deg, #1468B1, #2A7ABF); color: white; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px;">
+        <h2 id="welcomeMsg" style="font-size: 18px; margin-bottom: 6px;">Bienvenido</h2>
+        <p style="opacity: 0.85; font-size: 13px;">Gestiona ventas, stock e inventario de las sucursales.</p>
+    </div>
+
+    <div id="cardsContainer" style="display:grid; grid-template-columns: repeat(4,1fr); gap:18px;"></div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    document.getElementById('welcomeMsg').textContent = 'Bienvenido, ' + username;
+
+    async function cargarDatos() {
+        const h = authHeaders();
+        try {
+            if (rol === 'ADMIN') {
+                const [v, p, c, f] = await Promise.all([
+                    fetch('/api/ventas', {headers: h}).then(r => r.json()),
+                    fetch('/api/productos', {headers: h}).then(r => r.json()),
+                    fetch('/api/clientes', {headers: h}).then(r => r.json()),
+                    fetch('/api/facturas', {headers: h}).then(r => r.json())
+                ]);
+                document.getElementById('cardsContainer').innerHTML = `
+                    <div class="card-box" style="padding:24px 28px">
+                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Ventas</div>
+                        <div style="font-size:36px;font-weight:700;color:#12274B">${v.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#aaa;margin-top:6px">Total registradas</div>
+                    </div>
+                    <div class="card-box" style="padding:24px 28px">
+                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Productos</div>
+                        <div style="font-size:36px;font-weight:700;color:#12274B">${p.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#aaa;margin-top:6px">En catálogo</div>
+                    </div>
+                    <div class="card-box" style="padding:24px 28px">
+                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Clientes</div>
+                        <div style="font-size:36px;font-weight:700;color:#12274B">${c.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#aaa;margin-top:6px">Registrados</div>
+                    </div>
+                    <div class="card-box" style="padding:24px 28px">
+                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Facturas</div>
+                        <div style="font-size:36px;font-weight:700;color:#12274B">${f.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#aaa;margin-top:6px">Emitidas</div>
+                    </div>
+                `;
+            } else if (rol === 'CAJERO') {
+                const [v, f] = await Promise.all([
+                    fetch('/api/ventas', {headers: h}).then(r => r.json()),
+                    fetch('/api/facturas', {headers: h}).then(r => r.json())
+                ]);
+                document.getElementById('cardsContainer').innerHTML = `
+                    <div class="card-box" style="padding:22px">
+                        <div style="font-size:28px;font-weight:700;color:#12274B">${v.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#888;margin-top:6px;text-transform:uppercase">Ventas</div>
+                    </div>
+                    <div class="card-box" style="padding:22px">
+                        <div style="font-size:28px;font-weight:700;color:#12274B">${f.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#888;margin-top:6px;text-transform:uppercase">Facturas</div>
+                    </div>
+                `;
+            } else if (rol === 'BODEGUERO') {
+                const p = await fetch('/api/productos', {headers: h}).then(r => r.json());
+                document.getElementById('cardsContainer').innerHTML = `
+                    <div class="card-box" style="padding:22px">
+                        <div style="font-size:28px;font-weight:700;color:#12274B">${p.datos?.length??0}</div>
+                        <div style="font-size:12px;color:#888;margin-top:6px;text-transform:uppercase">Productos</div>
+                    </div>
+                `;
+            }
+        } catch(e) { console.error(e); }
+    }
+    cargarDatos();
+</script>
+</body>
+</html>

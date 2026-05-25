@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Facturación - Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #12274B;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .login-wrapper {
+            display: flex;
+            width: 820px;
+            min-height: 480px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .login-left {
+            background: linear-gradient(160deg, #1468B1, #2A7ABF);
+            width: 340px;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: white;
+        }
+        .login-left h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+        .login-left p {
+            font-size: 13px;
+            opacity: 0.8;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .branch-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .branch-item {
+            background: rgba(255,255,255,0.15);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            border-left: 3px solid #D0EDFC;
+        }
+        .login-right {
+            background: white;
+            flex: 1;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .login-right h2 {
+            font-size: 20px;
+            color: #12274B;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .login-right .subtitle {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .form-group { margin-bottom: 18px; }
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #12274B;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #D0EDFC;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.2s;
+            color: #12274B;
+        }
+        input:focus { border-color: #1468B1; }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #1468B1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 6px;
+        }
+        button:hover { background: #12274B; }
+        button:disabled { background: #4C97D2; cursor: not-allowed; }
+        .error-msg {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 16px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="login-wrapper">
+    <div class="login-left">
+        <h1>Sistema de Facturación</h1>
+        <p>Gestión de ventas, stock e inventario para sucursales en Ecuador.</p>
+        <div class="branch-list">
+            <div class="branch-item">Sucursal Quito</div>
+            <div class="branch-item">Sucursal Ambato</div>
+            <div class="branch-item">Sucursal Cuenca</div>
+        </div>
+    </div>
+    <div class="login-right">
+        <h2>Iniciar sesión</h2>
+        <p class="subtitle">Ingresa tus credenciales para continuar</p>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="form-group">
+            <label for="username">Usuario</label>
+            <input type="text" id="username" placeholder="Ingresa tu usuario" autocomplete="off"/>
+        </div>
+        <div class="form-group">
+            <label for="password">Contraseña</label>
+            <input type="password" id="password" placeholder="Ingresa tu contraseña"/>
+        </div>
+        <button id="btnLogin" onclick="login()">Ingresar al sistema</button>
+    </div>
+</div>
+
+<script>
+    if (localStorage.getItem('token')) window.location.href = '/dashboard';
+
+    document.getElementById('password').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') login();
+    });
+
+    async function login() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const errorMsg = document.getElementById('errorMsg');
+        const btn = document.getElementById('btnLogin');
+
+        if (!username || !password) { mostrarError('Ingresa usuario y contraseña'); return; }
+
+        btn.disabled = true;
+        btn.textContent = 'Verificando...';
+        errorMsg.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await response.json();
+            if (response.ok && data.datos?.token) {
+                localStorage.setItem('token', data.datos.token);
+                localStorage.setItem('username', data.datos.username);
+                localStorage.setItem('rol', data.datos.rol);
+                localStorage.setItem('idSucursal', data.datos.idSucursal);
+                localStorage.setItem('sucursal', data.datos.sucursal);
+                window.location.href = '/dashboard';
+            } else {
+                mostrarError('Credenciales incorrectas');
+            }
+        } catch (e) {
+            mostrarError('Error de conexión con el servidor');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Ingresar al sistema';
+        }
+    }
+
+    function mostrarError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+</script>
+</body>
+</html>

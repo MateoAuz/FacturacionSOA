@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Clientes')}"></head>
+<body>
+<div th:replace="~{layout :: sidebar('clientes')}"></div>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Clientes</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div class="card-box">
+        <div class="card-box-header">
+            <h2>Listado de Clientes</h2>
+            <button class="btn btn-primary" id="btnNuevo" onclick="abrirModal()">+ Nuevo Cliente</button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
+            <input type="text" id="buscador" placeholder="Buscar por nombre, identificación o correo..."
+                   oninput="resetPagina()"
+                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+            <select id="filtroSize" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
+                <option value="10">10 por página</option>
+                <option value="25">25 por página</option>
+                <option value="50">50 por página</option>
+            </select>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Identificación</th>
+                <th>Nombres</th>
+                <th>Apellidos</th>
+                <th>Correo</th>
+                <th>Teléfono</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tablaClientes">
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- Paginación -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
+            <span id="infoPagina" style="font-size:13px;color:#888"></span>
+            <div style="display:flex;gap:6px;" id="controlesPagina"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h3 id="modalTitulo">Nuevo Cliente</h3>
+        <input type="hidden" id="clienteId"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Tipo identificación</label>
+                <select id="tipoIdentificacion">
+                    <option value="CEDULA">Cédula</option>
+                    <option value="RUC">RUC</option>
+                    <option value="PASAPORTE">Pasaporte</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Identificación</label>
+                <input type="text" id="identificacion" placeholder="Ej: 1234567890"/>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Nombres</label>
+                <input type="text" id="nombres" placeholder="Nombres"/>
+            </div>
+            <div class="form-group">
+                <label>Apellidos</label>
+                <input type="text" id="apellidos" placeholder="Apellidos"/>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Correo</label>
+                <input type="email" id="correo" placeholder="correo@ejemplo.com"/>
+            </div>
+            <div class="form-group">
+                <label>Teléfono</label>
+                <input type="text" id="telefono" placeholder="0999999999"/>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Dirección</label>
+            <input type="text" id="direccion" placeholder="Dirección opcional"/>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarCliente()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    if (rol === 'BODEGUERO') window.location.href = '/dashboard';
+
+    let paginaActual = 0;
+    let totalPaginas = 0;
+
+    function resetPagina() {
+        paginaActual = 0;
+        cargarDatos();
+    }
+
+    async function cargarDatos() {
+        const h = authHeaders();
+        const search = document.getElementById('buscador').value;
+        const size = document.getElementById('filtroSize').value;
+
+        let url = `/api/clientes/paginado?page=${paginaActual}&size=${size}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+
+        try {
+            const res = await fetch(url, {headers: h});
+            const data = await res.json();
+            const page = data.datos ?? data;
+
+            totalPaginas = page.totalPaginas;
+
+            document.getElementById('infoPagina').textContent =
+                `Mostrando ${page.contenido.length} de ${page.totalElementos} clientes — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
+
+            if (!page.contenido.length) {
+                document.getElementById('tablaClientes').innerHTML =
+                    '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">No se encontraron clientes</td></tr>';
+                document.getElementById('controlesPagina').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('tablaClientes').innerHTML = page.contenido.map(c => `
+                <tr>
+                    <td>${c.identificacion}</td>
+                    <td>${c.nombres}</td>
+                    <td>${c.apellidos ?? '-'}</td>
+                    <td>${c.correo ?? '-'}</td>
+                    <td>${c.telefono ?? '-'}</td>
+                    <td><span class="badge ${c.activo ? 'badge-success' : 'badge-danger'}">${c.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
+                        ${rol === 'ADMIN' || rol === 'CAJERO' ? `
+                        <button class="btn btn-primary btn-sm" onclick="editarCliente(${c.idCliente})">Editar</button>
+                        ` : '-'}
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPaginacion();
+        } catch(e) { console.error(e); }
+    }
+
+    function renderPaginacion() {
+        const cont = document.getElementById('controlesPagina');
+        let html = '';
+
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
+            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Anterior</button>`;
+
+        for (let i = 0; i < totalPaginas; i++) {
+            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+                html += `<button class="btn btn-sm" onclick="irPagina(${i})"
+                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
+            }
+        }
+
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
+            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Siguiente</button>`;
+
+        cont.innerHTML = html;
+    }
+
+    function irPagina(p) {
+        if (p < 0 || p >= totalPaginas) return;
+        paginaActual = p;
+        cargarDatos();
+    }
+
+    function abrirModal(limpiar = true) {
+        if (limpiar) {
+            document.getElementById('modalTitulo').textContent = 'Nuevo Cliente';
+            document.getElementById('clienteId').value = '';
+            document.getElementById('identificacion').value = '';
+            document.getElementById('nombres').value = '';
+            document.getElementById('apellidos').value = '';
+            document.getElementById('correo').value = '';
+            document.getElementById('telefono').value = '';
+            document.getElementById('direccion').value = '';
+        }
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    async function editarCliente(id) {
+        const h = authHeaders();
+        const res = await fetch(`/api/clientes/${id}`, {headers: h});
+        const data = await res.json();
+        const c = data.datos ?? data;
+        document.getElementById('modalTitulo').textContent = 'Editar Cliente';
+        document.getElementById('clienteId').value = c.idCliente;
+        document.getElementById('identificacion').value = c.identificacion;
+        document.getElementById('nombres').value = c.nombres;
+        document.getElementById('apellidos').value = c.apellidos ?? '';
+        document.getElementById('correo').value = c.correo ?? '';
+        document.getElementById('telefono').value = c.telefono ?? '';
+        document.getElementById('direccion').value = c.direccion ?? '';
+        document.getElementById('tipoIdentificacion').value = c.tipoIdentificacion ?? 'CEDULA';
+        abrirModal(false);
+    }
+
+    async function guardarCliente() {
+        const h = authHeaders();
+        const id = document.getElementById('clienteId').value;
+        const body = {
+            tipoIdentificacion: document.getElementById('tipoIdentificacion').value,
+            identificacion: document.getElementById('identificacion').value,
+            nombres: document.getElementById('nombres').value,
+            apellidos: document.getElementById('apellidos').value,
+            correo: document.getElementById('correo').value,
+            telefono: document.getElementById('telefono').value,
+            direccion: document.getElementById('direccion').value
+        };
+
+        const url = id ? `/api/clientes/${id}` : '/api/clientes';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
+            if (res.ok) {
+                cerrarModal();
+                cargarDatos();
+            } else {
+                const err = await res.json();
+                alert(err.mensaje ?? 'Error al guardar');
+            }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    cargarDatos();
+</script>
+</body>
+</html>

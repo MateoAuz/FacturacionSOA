@@ -15,6 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.empresa.sistema.dto.response.PageResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +43,12 @@ public class InventarioServiceImpl implements InventarioService {
     }
 
     @Override
+    public InventarioResponseDTO buscarPorId(Integer id) {
+        return toDTO(inventarioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Inventario no encontrado: " + id)));
+    }
+
+    @Override
     public InventarioResponseDTO actualizarStock(InventarioRequestDTO dto) {
         Producto producto = productoRepository.findById(dto.getIdProducto())
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
@@ -50,6 +61,23 @@ public class InventarioServiceImpl implements InventarioService {
         inv.setStockMinimo(dto.getStockMinimo());
         inv.setUltimaActualizacion(LocalDateTime.now());
         return toDTO(inventarioRepository.save(inv));
+    }
+    @Override
+    public PageResponseDTO<InventarioResponseDTO> buscarPaginado(String search, Integer idSucursal, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("producto.nombre").ascending());
+        Page<Inventario> resultado = inventarioRepository.buscarPaginado(
+                (search != null && !search.isBlank()) ? search : null,
+                idSucursal,
+                pageable);
+        return PageResponseDTO.<InventarioResponseDTO>builder()
+                .contenido(resultado.getContent().stream().map(this::toDTO).collect(Collectors.toList()))
+                .paginaActual(resultado.getNumber())
+                .totalPaginas(resultado.getTotalPages())
+                .totalElementos(resultado.getTotalElements())
+                .tamanioPagina(resultado.getSize())
+                .primera(resultado.isFirst())
+                .ultima(resultado.isLast())
+                .build();
     }
 
     @Override

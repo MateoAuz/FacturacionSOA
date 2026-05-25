@@ -12,6 +12,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
+import com.empresa.sistema.dto.response.PageResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
@@ -78,6 +83,24 @@ public class ProductoServiceImpl implements ProductoService {
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    @Override
+    public PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, Integer idCategoria, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
+        Page<Producto> resultado = productoRepository.buscarPaginado(
+                (search != null && !search.isBlank()) ? search : null,
+                idCategoria,
+                pageable);
+        return PageResponseDTO.<ProductoResponseDTO>builder()
+                .contenido(resultado.getContent().stream().map(this::toDTO).collect(Collectors.toList()))
+                .paginaActual(resultado.getNumber())
+                .totalPaginas(resultado.getTotalPages())
+                .totalElementos(resultado.getTotalElements())
+                .tamanioPagina(resultado.getSize())
+                .primera(resultado.isFirst())
+                .ultima(resultado.isLast())
+                .build();
+    }
+
     private ProductoResponseDTO toDTO(Producto p) {
         return ProductoResponseDTO.builder()
                 .idProducto(p.getIdProducto()).codigo(p.getCodigo()).nombre(p.getNombre())
@@ -87,4 +110,6 @@ public class ProductoServiceImpl implements ProductoService {
                 .aplicaIva(p.getAplicaIva()).activo(p.getActivo())
                 .tipoSri(p.getTipoSri().name()).fechaRegistro(p.getFechaRegistro()).build();
     }
+
+
 }

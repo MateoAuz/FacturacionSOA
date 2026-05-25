@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
 @RequestMapping("/api/ventas")
@@ -60,6 +61,17 @@ public class VentaController {
     @Operation(summary = "Listar ventas por sucursal")
     public ResponseEntity<ApiResponseDTO<List<VentaResponseDTO>>> porSucursal(@PathVariable Integer idSucursal) {
         return ResponseEntity.ok(ApiResponseDTO.ok(ventaService.listarPorSucursal(idSucursal)));
+    }
+    @GetMapping("/paginado")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO')")
+    @Operation(summary = "Listar ventas paginado con búsqueda y filtros")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<VentaResponseDTO>>> buscarPaginado(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer idSucursal,
+            @RequestParam(required = false) String estado,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(ventaService.buscarPaginado(search, idSucursal, estado, page, size)));
     }
 
     @GetMapping("/cliente/{idCliente}")

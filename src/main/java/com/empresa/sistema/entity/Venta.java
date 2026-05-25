@@ -7,7 +7,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "venta")
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Venta {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,22 +36,28 @@ public class Venta {
     @JoinColumn(name = "id_iva", nullable = false)
     private ConfiguracionIva configuracionIva;
 
+    @Builder.Default
     @Column(name = "fecha_venta", nullable = false)
     private LocalDateTime fechaVenta = LocalDateTime.now();
 
+    @Builder.Default
     @Column(name = "subtotal", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotal = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "iva_valor", nullable = false, precision = 12, scale = 2)
     private BigDecimal ivaValor = BigDecimal.ZERO;
 
+    @Builder.Default
     @Column(name = "total", nullable = false, precision = 12, scale = 2)
     private BigDecimal total = BigDecimal.ZERO;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "metodo_pago", nullable = false, length = 15)
     private MetodoPago metodoPago = MetodoPago.EFECTIVO;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 10)
     private EstadoVenta estado = EstadoVenta.PAGADA;

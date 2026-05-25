@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Facturas')}"></head>
+<body>
+<div th:replace="~{layout :: sidebar('facturas')}"></div>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Facturas</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div class="card-box">
+        <div class="card-box-header">
+            <h2>Listado de Facturas</h2>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
+            <input type="text" id="buscador" placeholder="Buscar por número o cliente..."
+                   oninput="resetPagina()"
+                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+            <select id="filtroEstado" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
+                <option value="">Todos los estados</option>
+                <option value="EMITIDA">Emitida</option>
+                <option value="ANULADA">Anulada</option>
+            </select>
+            <select id="filtroSize" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
+                <option value="10">10 por página</option>
+                <option value="25">25 por página</option>
+                <option value="50">50 por página</option>
+            </select>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th>N° Factura</th>
+                <th>Cliente</th>
+                <th>Fecha Emisión</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tablaFacturas">
+            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
+            </tbody>
+        </table>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
+            <span id="infoPagina" style="font-size:13px;color:#888"></span>
+            <div style="display:flex;gap:6px;" id="controlesPagina"></div>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    if (rol === 'BODEGUERO') window.location.href = '/dashboard';
+
+    let paginaActual = 0;
+    let totalPaginas = 0;
+
+    function resetPagina() { paginaActual = 0; cargarDatos(); }
+
+    async function cargarDatos() {
+        const h = authHeaders();
+        const search = document.getElementById('buscador').value;
+        const estado = document.getElementById('filtroEstado').value;
+        const size = document.getElementById('filtroSize').value;
+
+        let url = `/api/facturas/paginado?page=${paginaActual}&size=${size}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (estado) url += `&estado=${estado}`;
+
+        try {
+            const res = await fetch(url, {headers: h});
+            const data = await res.json();
+            const page = data.datos ?? data;
+            totalPaginas = page.totalPaginas;
+
+            document.getElementById('infoPagina').textContent =
+                `Mostrando ${page.contenido.length} de ${page.totalElementos} facturas — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
+
+            if (!page.contenido.length) {
+                document.getElementById('tablaFacturas').innerHTML =
+                    '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">No se encontraron facturas</td></tr>';
+                document.getElementById('controlesPagina').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('tablaFacturas').innerHTML = page.contenido.map(f => `
+                <tr>
+                    <td>${f.numeroSecuencial}</td>
+                    <td>${f.cliente ?? '-'}</td>
+                    <td>${f.fechaEmision ? new Date(f.fechaEmision).toLocaleDateString('es-EC') : '-'}</td>
+                    <td>${f.total ? '$' + parseFloat(f.total).toFixed(2) : '-'}</td>
+                    <td><span class="badge ${f.estado === 'EMITIDA' ? 'badge-success' : 'badge-danger'}">${f.estado}</span></td>
+                    <td style="display:flex;gap:6px;">
+                        <button class="btn btn-primary btn-sm" onclick="descargarPdf(${f.idFactura})">PDF</button>
+                        ${f.estado === 'EMITIDA' ? `
+                        <button class="btn btn-danger btn-sm" onclick="anularFactura(${f.idFactura})">Anular</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPaginacion();
+        } catch(e) { console.error(e); }
+    }
+
+    function renderPaginacion() {
+        const cont = document.getElementById('controlesPagina');
+        let html = `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
+            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Anterior</button>`;
+        for (let i = 0; i < totalPaginas; i++) {
+            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+                html += `<button class="btn btn-sm" onclick="irPagina(${i})"
+                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
+            }
+        }
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
+            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Siguiente</button>`;
+        cont.innerHTML = html;
+    }
+
+    function irPagina(p) {
+        if (p < 0 || p >= totalPaginas) return;
+        paginaActual = p;
+        cargarDatos();
+    }
+
+    async function descargarPdf(id) {
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/facturas/${id}/pdf`, {headers: h});
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `factura-${id}.pdf`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert('Error al generar el PDF');
+            }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    async function anularFactura(id) {
+        if (!confirm('¿Está seguro de anular esta factura?')) return;
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/facturas/${id}/anular`, {method: 'PATCH', headers: h});
+            if (res.ok) cargarDatos();
+            else alert('Error al anular la factura');
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    cargarDatos();
+</script>
+</body>
+</html>

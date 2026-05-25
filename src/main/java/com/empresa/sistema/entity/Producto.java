@@ -40,6 +40,7 @@ public class Producto {
     private Boolean activo = true;
 
     @Column(name = "fecha_registro", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime fechaRegistro = LocalDateTime.now();
 
     @Enumerated(EnumType.STRING)

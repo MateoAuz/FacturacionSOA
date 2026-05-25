@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Inventario')}"></head>
+<body>
+<div th:replace="~{layout :: sidebar('inventario')}"></div>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Inventario</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div class="card-box">
+        <div class="card-box-header">
+            <h2>Stock por Sucursal</h2>
+            <button class="btn btn-primary" id="btnNuevo" onclick="abrirModal()">+ Agregar Stock</button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
+            <input type="text" id="buscador" placeholder="Buscar por producto o código..."
+                   oninput="resetPagina()"
+                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+            <select id="filtroSucursal" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Todas las sucursales</option>
+            </select>
+            <select id="filtroSize" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
+                <option value="10">10 por página</option>
+                <option value="25">25 por página</option>
+                <option value="50">50 por página</option>
+            </select>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Código</th>
+                <th>Sucursal</th>
+                <th>Cantidad</th>
+                <th>Stock Mínimo</th>
+                <th>Última Actualización</th>
+                <th>Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tablaInventario">
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- Paginación -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
+            <span id="infoPagina" style="font-size:13px;color:#888"></span>
+            <div style="display:flex;gap:6px;" id="controlesPagina"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h3 id="modalTitulo">Agregar Stock</h3>
+        <input type="hidden" id="inventarioId"/>
+        <div class="form-group">
+            <label>Producto</label>
+            <select id="producto"></select>
+        </div>
+        <div class="form-group">
+            <label>Sucursal</label>
+            <select id="sucursal"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" id="cantidad" placeholder="0" min="0"/>
+            </div>
+            <div class="form-group">
+                <label>Stock Mínimo</label>
+                <input type="number" id="stockMinimo" placeholder="0" min="0"/>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarInventario()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    if (rol === 'CAJERO') window.location.href = '/dashboard';
+
+    let paginaActual = 0;
+    let totalPaginas = 0;
+
+    function resetPagina() {
+        paginaActual = 0;
+        cargarDatos();
+    }
+
+    async function cargarDatos() {
+        const h = authHeaders();
+        const search = document.getElementById('buscador').value;
+        const idSucursal = document.getElementById('filtroSucursal').value;
+        const size = document.getElementById('filtroSize').value;
+
+        let url = `/api/inventario/paginado?page=${paginaActual}&size=${size}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (idSucursal) url += `&idSucursal=${idSucursal}`;
+
+        try {
+            const res = await fetch(url, {headers: h});
+            const data = await res.json();
+            const page = data.datos ?? data;
+
+            totalPaginas = page.totalPaginas;
+
+            document.getElementById('infoPagina').textContent =
+                `Mostrando ${page.contenido.length} de ${page.totalElementos} registros — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
+
+            if (!page.contenido.length) {
+                document.getElementById('tablaInventario').innerHTML =
+                    '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">No se encontraron registros</td></tr>';
+                document.getElementById('controlesPagina').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('tablaInventario').innerHTML = page.contenido.map(i => `
+                <tr>
+                    <td>${i.producto}</td>
+                    <td>${i.codigoProducto ?? '-'}</td>
+                    <td>${i.sucursal}</td>
+                    <td>
+                        <span class="badge ${i.cantidad <= (i.stockMinimo ?? 0) ? 'badge-danger' : 'badge-success'}">
+                            ${i.cantidad}
+                        </span>
+                    </td>
+                    <td>${i.stockMinimo ?? 0}</td>
+                    <td>${i.ultimaActualizacion ? new Date(i.ultimaActualizacion).toLocaleDateString('es-EC') : '-'}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="editarInventario(${i.idInventario})">Editar</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPaginacion();
+        } catch(e) { console.error(e); }
+    }
+
+    function renderPaginacion() {
+        const cont = document.getElementById('controlesPagina');
+        let html = '';
+
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
+            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Anterior</button>`;
+
+        for (let i = 0; i < totalPaginas; i++) {
+            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+                html += `<button class="btn btn-sm" onclick="irPagina(${i})"
+                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
+            }
+        }
+
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
+            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Siguiente</button>`;
+
+        cont.innerHTML = html;
+    }
+
+    function irPagina(p) {
+        if (p < 0 || p >= totalPaginas) return;
+        paginaActual = p;
+        cargarDatos();
+    }
+
+    async function cargarFiltros() {
+        const h = authHeaders();
+        const [prods, sucs] = await Promise.all([
+            fetch('/api/productos', {headers: h}).then(r => r.json()),
+            fetch('/api/sucursales', {headers: h}).then(r => r.json())
+        ]);
+
+        const productos = prods.datos ?? prods;
+        const sucursales = sucs.datos ?? sucs;
+
+        document.getElementById('producto').innerHTML = productos.map(p =>
+            `<option value="${p.idProducto}">${p.nombre}</option>`).join('');
+
+        const sucOpts = sucursales.map(s =>
+            `<option value="${s.idSucursal}">${s.nombre}</option>`).join('');
+
+        document.getElementById('sucursal').innerHTML = sucOpts;
+        document.getElementById('filtroSucursal').innerHTML =
+            '<option value="">Todas las sucursales</option>' + sucOpts;
+
+        // BODEGUERO solo puede agregar stock en su sucursal
+        const idSucursalLocal = localStorage.getItem('idSucursal');
+        if (rol === 'BODEGUERO' && idSucursalLocal) {
+            document.getElementById('sucursal').value = idSucursalLocal;
+            document.getElementById('sucursal').disabled = true;
+        }
+    }
+
+    function abrirModal(limpiar = true) {
+        if (limpiar) {
+            document.getElementById('modalTitulo').textContent = 'Agregar Stock';
+            document.getElementById('inventarioId').value = '';
+            document.getElementById('cantidad').value = '';
+            document.getElementById('stockMinimo').value = '';
+        }
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    async function editarInventario(id) {
+        const h = authHeaders();
+        const res = await fetch(`/api/inventario/${id}`, {headers: h});
+        const data = await res.json();
+        const inv = data.datos ?? data;
+
+        document.getElementById('modalTitulo').textContent = 'Editar Stock';
+        document.getElementById('inventarioId').value = inv.idInventario;
+        document.getElementById('cantidad').value = inv.cantidad;
+        document.getElementById('stockMinimo').value = inv.stockMinimo ?? 0;
+
+        const selProd = document.getElementById('producto').options;
+        for (let i = 0; i < selProd.length; i++) {
+            if (selProd[i].text === inv.producto) {
+                document.getElementById('producto').selectedIndex = i;
+                break;
+            }
+        }
+
+        // Solo cambiar sucursal si es ADMIN
+        if (rol === 'ADMIN') {
+            const selSuc = document.getElementById('sucursal').options;
+            for (let i = 0; i < selSuc.length; i++) {
+                if (selSuc[i].text === inv.sucursal) {
+                    document.getElementById('sucursal').selectedIndex = i;
+                    break;
+                }
+            }
+        }
+
+        abrirModal(false);
+    }
+
+    async function guardarInventario() {
+        const h = authHeaders();
+        const id = document.getElementById('inventarioId').value;
+        const body = {
+            idProducto: parseInt(document.getElementById('producto').value),
+            idSucursal: parseInt(document.getElementById('sucursal').value),
+            cantidad: parseInt(document.getElementById('cantidad').value),
+            stockMinimo: parseInt(document.getElementById('stockMinimo').value) || 0
+        };
+
+        const url = id ? `/api/inventario/${id}` : '/api/inventario';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
+            if (res.ok) {
+                cerrarModal();
+                cargarDatos();
+            } else {
+                const err = await res.json();
+                alert(err.mensaje ?? 'Error al guardar');
+            }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    cargarFiltros();
+    cargarDatos();
+</script>
+</body>
+</html>

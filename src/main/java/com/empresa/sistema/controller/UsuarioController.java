@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -29,6 +30,17 @@ public class UsuarioController {
     @Operation(summary = "Listar todos los usuarios")
     public ResponseEntity<ApiResponseDTO<List<UsuarioResponseDTO>>> listar() {
         return ResponseEntity.ok(ApiResponseDTO.ok(usuarioService.listarTodos()));
+    }
+
+    @GetMapping("/paginado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Listar usuarios paginado con búsqueda y filtros")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<UsuarioResponseDTO>>> buscarPaginado(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer idRol,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(usuarioService.buscarPaginado(search, idRol, page, size)));
     }
 
     @GetMapping("/{id}")

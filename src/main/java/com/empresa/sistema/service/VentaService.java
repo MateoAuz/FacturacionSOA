@@ -4,6 +4,7 @@ import com.empresa.sistema.dto.request.VentaRequestDTO;
 import com.empresa.sistema.dto.response.VentaResponseDTO;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 public interface VentaService {
     List<VentaResponseDTO> listarTodas();
@@ -13,4 +14,5 @@ public interface VentaService {
     List<VentaResponseDTO> listarPorSucursal(Integer idSucursal);
     List<VentaResponseDTO> listarPorFecha(LocalDateTime inicio, LocalDateTime fin);
     List<VentaResponseDTO> listarPorCliente(Integer idCliente);
+    PageResponseDTO<VentaResponseDTO> buscarPaginado(String search, Integer idSucursal, String estado, int page, int size);
 }

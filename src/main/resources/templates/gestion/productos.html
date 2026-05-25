@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Productos')}"></head>
+<body>
+<div th:replace="~{layout :: sidebar('productos')}"></div>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Productos</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div class="card-box">
+        <div class="card-box-header">
+            <h2>Listado de Productos</h2>
+            <button class="btn btn-primary" id="btnNuevo" onclick="abrirModal()">+ Nuevo Producto</button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
+            <input type="text" id="buscador" placeholder="Buscar por nombre o código..."
+                   oninput="resetPagina()"
+                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+            <select id="filtroCat" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Todas las categorías</option>
+            </select>
+            <select id="filtroSize" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
+                <option value="10">10 por página</option>
+                <option value="25">25 por página</option>
+                <option value="50">50 por página</option>
+            </select>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Precio Venta</th>
+                <th>IVA</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tablaProductos">
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
+            </tbody>
+        </table>
+
+        <!-- Paginación -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
+            <span id="infoPagina" style="font-size:13px;color:#888"></span>
+            <div style="display:flex;gap:6px;" id="controlesPagina"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h3 id="modalTitulo">Nuevo Producto</h3>
+        <input type="hidden" id="productoId"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Código</label>
+                <input type="text" id="codigo" placeholder="Ej: PROD-001"/>
+            </div>
+            <div class="form-group">
+                <label>Unidad de medida</label>
+                <input type="text" id="unidadMedida" placeholder="Ej: UNIDAD"/>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="nombre" placeholder="Nombre del producto"/>
+        </div>
+        <div class="form-group">
+            <label>Descripción</label>
+            <input type="text" id="descripcion" placeholder="Descripción opcional"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="categoria"></select>
+            </div>
+            <div class="form-group">
+                <label>Tipo SRI</label>
+                <select id="tipoSri">
+                    <option value="BIEN">Bien</option>
+                    <option value="SERVICIO">Servicio</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Precio de venta</label>
+                <input type="number" id="precioVenta" placeholder="0.00" step="0.01"/>
+            </div>
+            <div class="form-group">
+                <label>Aplica IVA</label>
+                <select id="aplicaIva">
+                    <option value="true">Sí</option>
+                    <option value="false">No</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    if (rol === 'CAJERO') {
+        document.getElementById('btnNuevo').style.display = 'none';
+    }
+
+    let paginaActual = 0;
+    let totalPaginas = 0;
+
+    function resetPagina() {
+        paginaActual = 0;
+        cargarDatos();
+    }
+
+    async function cargarDatos() {
+        const h = authHeaders();
+        const search = document.getElementById('buscador').value;
+        const idCategoria = document.getElementById('filtroCat').value;
+        const size = document.getElementById('filtroSize').value;
+
+        let url = `/api/productos/paginado?page=${paginaActual}&size=${size}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (idCategoria) url += `&idCategoria=${idCategoria}`;
+
+        try {
+            const res = await fetch(url, {headers: h});
+            const data = await res.json();
+            const page = data.datos ?? data;
+
+            totalPaginas = page.totalPaginas;
+
+            document.getElementById('infoPagina').textContent =
+                `Mostrando ${page.contenido.length} de ${page.totalElementos} productos — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
+
+            if (!page.contenido.length) {
+                document.getElementById('tablaProductos').innerHTML =
+                    '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">No se encontraron productos</td></tr>';
+                document.getElementById('controlesPagina').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('tablaProductos').innerHTML = page.contenido.map(p => `
+                <tr>
+                    <td>${p.codigo}</td>
+                    <td>${p.nombre}</td>
+                    <td>${p.categoria ?? '-'}</td>
+                    <td>$${parseFloat(p.precioVenta).toFixed(2)}</td>
+                    <td><span class="badge ${p.aplicaIva ? 'badge-success' : 'badge-danger'}">${p.aplicaIva ? 'Sí' : 'No'}</span></td>
+                    <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td>
+                        ${rol === 'ADMIN' || rol === 'BODEGUERO' ? `
+                        <button class="btn btn-primary btn-sm" onclick="editarProducto(${p.idProducto})">Editar</button>
+                        ` : '-'}
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPaginacion();
+        } catch(e) { console.error(e); }
+    }
+
+    function renderPaginacion() {
+        const cont = document.getElementById('controlesPagina');
+        let html = '';
+
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
+            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Anterior</button>`;
+
+        for (let i = 0; i < totalPaginas; i++) {
+            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+                html += `<button class="btn btn-sm" onclick="irPagina(${i})"
+                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
+            }
+        }
+
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
+            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Siguiente</button>`;
+
+        cont.innerHTML = html;
+    }
+
+    function irPagina(p) {
+        if (p < 0 || p >= totalPaginas) return;
+        paginaActual = p;
+        cargarDatos();
+    }
+
+    async function cargarCategorias() {
+        const h = authHeaders();
+        const res = await fetch('/api/categorias', {headers: h});
+        const data = await res.json();
+        const cats = data.datos ?? data;
+
+        const selFiltro = document.getElementById('filtroCat');
+        const selModal = document.getElementById('categoria');
+        const opts = cats.map(c => `<option value="${c.idCategoria}">${c.nombre}</option>`).join('');
+        selFiltro.innerHTML = '<option value="">Todas las categorías</option>' + opts;
+        selModal.innerHTML = opts;
+    }
+
+    function abrirModal(limpiar = true) {
+        if (limpiar) {
+            document.getElementById('modalTitulo').textContent = 'Nuevo Producto';
+            document.getElementById('productoId').value = '';
+            document.getElementById('codigo').value = '';
+            document.getElementById('nombre').value = '';
+            document.getElementById('precioVenta').value = '';
+            document.getElementById('descripcion').value = '';
+            document.getElementById('unidadMedida').value = '';
+        }
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    async function editarProducto(id) {
+        const h = authHeaders();
+        const res = await fetch(`/api/productos/${id}`, {headers: h});
+        const data = await res.json();
+        const p = data.datos ?? data;
+
+        await cargarCategorias();
+
+        document.getElementById('modalTitulo').textContent = 'Editar Producto';
+        document.getElementById('productoId').value = p.idProducto;
+        document.getElementById('codigo').value = p.codigo;
+        document.getElementById('nombre').value = p.nombre;
+        document.getElementById('precioVenta').value = p.precioVenta;
+        document.getElementById('descripcion').value = p.descripcion ?? '';
+        document.getElementById('unidadMedida').value = p.unidadMedida ?? '';
+        document.getElementById('aplicaIva').value = p.aplicaIva;
+        document.getElementById('tipoSri').value = p.tipoSri;
+
+        const cats = document.getElementById('categoria').options;
+        for (let i = 0; i < cats.length; i++) {
+            if (cats[i].text === p.categoria) {
+                document.getElementById('categoria').selectedIndex = i;
+                break;
+            }
+        }
+
+        abrirModal(false);
+    }
+
+    async function guardarProducto() {
+        const h = authHeaders();
+        const id = document.getElementById('productoId').value;
+        const body = {
+            codigo: document.getElementById('codigo').value,
+            nombre: document.getElementById('nombre').value,
+            idCategoria: parseInt(document.getElementById('categoria').value),
+            precioVenta: parseFloat(document.getElementById('precioVenta').value),
+            descripcion: document.getElementById('descripcion').value,
+            unidadMedida: document.getElementById('unidadMedida').value,
+            aplicaIva: document.getElementById('aplicaIva').value === 'true',
+            tipoSri: document.getElementById('tipoSri').value
+        };
+
+        const url = id ? `/api/productos/${id}` : '/api/productos';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
+            if (res.ok) {
+                cerrarModal();
+                cargarDatos();
+            } else {
+                const err = await res.json();
+                alert(err.mensaje ?? 'Error al guardar');
+            }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    cargarCategorias();
+    cargarDatos();
+</script>
+</body>
+</html>

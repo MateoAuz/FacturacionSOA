@@ -1,7 +1,11 @@
 package com.empresa.sistema.repository;
 
 import com.empresa.sistema.entity.Producto;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,4 +14,11 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     List<Producto> findByActivoTrue();
     List<Producto> findByNombreContainingIgnoreCase(String nombre);
     List<Producto> findByCategoria_IdCategoriaAndActivoTrue(Integer idCategoria);
+
+    @Query("SELECT p FROM Producto p WHERE p.activo = true AND " +
+            "(:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "(:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria)")
+    Page<Producto> buscarPaginado(@Param("search") String search,
+                                  @Param("idCategoria") Integer idCategoria,
+                                  Pageable pageable);
 }

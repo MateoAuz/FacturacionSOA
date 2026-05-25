@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
 @RequestMapping("/api/inventario")
@@ -40,12 +41,39 @@ public class InventarioController {
                 inventarioService.buscarPorProductoYSucursal(idProducto, idSucursal)));
     }
 
-    @PutMapping
+    @GetMapping("/paginado")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BODEGUERO')")
+    @Operation(summary = "Listar inventario paginado con búsqueda y filtros")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<InventarioResponseDTO>>> buscarPaginado(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer idSucursal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.buscarPaginado(search, idSucursal, page, size)));
+    }
+
+    @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
     @Operation(summary = "Actualizar stock")
     public ResponseEntity<ApiResponseDTO<InventarioResponseDTO>> actualizar(
+            @PathVariable Integer id,
             @Valid @RequestBody InventarioRequestDTO dto) {
         return ResponseEntity.ok(ApiResponseDTO.ok("Stock actualizado", inventarioService.actualizarStock(dto)));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
+    @Operation(summary = "Buscar inventario por ID")
+    public ResponseEntity<ApiResponseDTO<InventarioResponseDTO>> buscarPorId(@PathVariable Integer id) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.buscarPorId(id)));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
+    @Operation(summary = "Crear registro de inventario")
+    public ResponseEntity<ApiResponseDTO<InventarioResponseDTO>> crear(
+            @Valid @RequestBody InventarioRequestDTO dto) {
+        return ResponseEntity.ok(ApiResponseDTO.ok("Inventario creado", inventarioService.actualizarStock(dto)));
     }
 
     @PatchMapping("/ajustar")

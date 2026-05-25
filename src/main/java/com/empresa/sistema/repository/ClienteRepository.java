@@ -1,7 +1,11 @@
 package com.empresa.sistema.repository;
 
 import com.empresa.sistema.entity.Cliente;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
@@ -9,4 +13,10 @@ public interface ClienteRepository extends JpaRepository<Cliente, Integer> {
     Optional<Cliente> findByIdentificacion(String identificacion);
     List<Cliente> findByActivoTrue();
     List<Cliente> findByNombresContainingIgnoreCaseOrApellidosContainingIgnoreCase(String nombres, String apellidos);
+
+    @Query("SELECT c FROM Cliente c WHERE " +
+            "(:search IS NULL OR LOWER(c.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(c.identificacion) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+            "LOWER(c.correo) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Cliente> buscarPaginado(@Param("search") String search, Pageable pageable);
 }

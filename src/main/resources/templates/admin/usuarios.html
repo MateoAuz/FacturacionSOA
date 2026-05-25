@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Usuarios')}"></head>
+<body>
+<div th:replace="~{layout :: sidebar('usuarios')}"></div>
+
+<div class="main">
+    <div class="topbar">
+        <h1>Usuarios</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div class="card-box">
+        <div class="card-box-header">
+            <h2>Listado de Usuarios</h2>
+            <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo Usuario</button>
+        </div>
+
+        <!-- Filtros -->
+        <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
+            <input type="text" id="buscador" placeholder="Buscar por nombre, usuario o correo..."
+                   oninput="resetPagina()"
+                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+            <select id="filtroRol" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Todos los roles</option>
+            </select>
+            <select id="filtroSize" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
+                <option value="10">10 por página</option>
+                <option value="25">25 por página</option>
+            </select>
+        </div>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Usuario</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Sucursal</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+            </thead>
+            <tbody id="tablaUsuarios">
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
+            </tbody>
+        </table>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
+            <span id="infoPagina" style="font-size:13px;color:#888"></span>
+            <div style="display:flex;gap:6px;" id="controlesPagina"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+        <h3 id="modalTitulo">Nuevo Usuario</h3>
+        <input type="hidden" id="usuarioId"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="nombre" placeholder="Nombre"/>
+            </div>
+            <div class="form-group">
+                <label>Apellido</label>
+                <input type="text" id="apellido" placeholder="Apellido"/>
+            </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" placeholder="usuario123"/>
+            </div>
+            <div class="form-group">
+                <label>Correo</label>
+                <input type="email" id="correo" placeholder="correo@ejemplo.com"/>
+            </div>
+        </div>
+        <div class="form-group">
+            <label id="passwordLabel">Contraseña</label>
+            <input type="password" id="password" placeholder="Mínimo 6 caracteres"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+                <label>Rol</label>
+                <select id="rol"></select>
+            </div>
+            <div class="form-group">
+                <label>Sucursal</label>
+                <select id="sucursal"></select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarUsuario()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    if (rol !== 'ADMIN') window.location.href = '/dashboard';
+
+    let paginaActual = 0;
+    let totalPaginas = 0;
+    let roles = [];
+
+    function resetPagina() { paginaActual = 0; cargarDatos(); }
+
+    async function cargarDatos() {
+        const h = authHeaders();
+        const search = document.getElementById('buscador').value;
+        const idRol = document.getElementById('filtroRol').value;
+        const size = document.getElementById('filtroSize').value;
+
+        let url = `/api/usuarios/paginado?page=${paginaActual}&size=${size}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (idRol) url += `&idRol=${idRol}`;
+
+        try {
+            const res = await fetch(url, {headers: h});
+            const data = await res.json();
+            const page = data.datos ?? data;
+            totalPaginas = page.totalPaginas;
+
+            document.getElementById('infoPagina').textContent =
+                `Mostrando ${page.contenido.length} de ${page.totalElementos} usuarios — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
+
+            if (!page.contenido.length) {
+                document.getElementById('tablaUsuarios').innerHTML =
+                    '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">No se encontraron usuarios</td></tr>';
+                document.getElementById('controlesPagina').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('tablaUsuarios').innerHTML = page.contenido.map(u => `
+                <tr>
+                    <td>${u.nombre} ${u.apellido}</td>
+                    <td>${u.username}</td>
+                    <td>${u.correo ?? '-'}</td>
+                    <td><span class="badge badge-success">${u.rol}</span></td>
+                    <td>${u.sucursal}</td>
+                    <td><span class="badge ${u.activo ? 'badge-success' : 'badge-danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                    <td style="display:flex;gap:6px;">
+                        <button class="btn btn-primary btn-sm" onclick="editarUsuario(${u.idUsuario})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="cambiarEstado(${u.idUsuario}, ${!u.activo})">${u.activo ? 'Desactivar' : 'Activar'}</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPaginacion();
+        } catch(e) { console.error(e); }
+    }
+
+    function renderPaginacion() {
+        const cont = document.getElementById('controlesPagina');
+        let html = `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
+            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Anterior</button>`;
+        for (let i = 0; i < totalPaginas; i++) {
+            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+                html += `<button class="btn btn-sm" onclick="irPagina(${i})"
+                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
+            }
+        }
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
+            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+            style="background:#f0f4f8;color:#333">Siguiente</button>`;
+        cont.innerHTML = html;
+    }
+
+    function irPagina(p) {
+        if (p < 0 || p >= totalPaginas) return;
+        paginaActual = p;
+        cargarDatos();
+    }
+
+    async function cargarFiltros() {
+        const h = authHeaders();
+        const [rolesRes, sucsRes] = await Promise.all([
+            fetch('/api/roles', {headers: h}).then(r => r.json()),
+            fetch('/api/sucursales', {headers: h}).then(r => r.json())
+        ]);
+
+        roles = rolesRes.datos ?? rolesRes;
+        const sucursales = sucsRes.datos ?? sucsRes;
+
+        const rolOpts = roles.map(r => `<option value="${r.idRol}">${r.nombre}</option>`).join('');
+        document.getElementById('filtroRol').innerHTML = '<option value="">Todos los roles</option>' + rolOpts;
+        document.getElementById('rol').innerHTML = rolOpts;
+
+        document.getElementById('sucursal').innerHTML = sucursales.map(s =>
+            `<option value="${s.idSucursal}">${s.nombre}</option>`).join('');
+    }
+
+    function abrirModal(limpiar = true) {
+        if (limpiar) {
+            document.getElementById('modalTitulo').textContent = 'Nuevo Usuario';
+            document.getElementById('usuarioId').value = '';
+            document.getElementById('nombre').value = '';
+            document.getElementById('apellido').value = '';
+            document.getElementById('username').value = '';
+            document.getElementById('correo').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('passwordLabel').textContent = 'Contraseña';
+            document.getElementById('username').disabled = false;
+        }
+        document.getElementById('modalOverlay').classList.add('open');
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    async function editarUsuario(id) {
+        const h = authHeaders();
+        const res = await fetch(`/api/usuarios/${id}`, {headers: h});
+        const data = await res.json();
+        const u = data.datos ?? data;
+
+        document.getElementById('modalTitulo').textContent = 'Editar Usuario';
+        document.getElementById('usuarioId').value = u.idUsuario;
+        document.getElementById('nombre').value = u.nombre;
+        document.getElementById('apellido').value = u.apellido;
+        document.getElementById('username').value = u.username;
+        document.getElementById('username').disabled = true;
+        document.getElementById('correo').value = u.correo ?? '';
+        document.getElementById('password').value = '';
+        document.getElementById('passwordLabel').textContent = 'Nueva Contraseña (dejar vacío para no cambiar)';
+
+        const rolOpts = document.getElementById('rol').options;
+        for (let i = 0; i < rolOpts.length; i++) {
+            if (rolOpts[i].text === u.rol) {
+                document.getElementById('rol').selectedIndex = i;
+                break;
+            }
+        }
+
+        const sucOpts = document.getElementById('sucursal').options;
+        for (let i = 0; i < sucOpts.length; i++) {
+            if (sucOpts[i].text === u.sucursal) {
+                document.getElementById('sucursal').selectedIndex = i;
+                break;
+            }
+        }
+
+        abrirModal(false);
+    }
+
+    async function guardarUsuario() {
+        const h = authHeaders();
+        const id = document.getElementById('usuarioId').value;
+        const body = {
+            nombre: document.getElementById('nombre').value,
+            apellido: document.getElementById('apellido').value,
+            username: document.getElementById('username').value,
+            correo: document.getElementById('correo').value,
+            password: document.getElementById('password').value || 'nochange',
+            idRol: parseInt(document.getElementById('rol').value),
+            idSucursal: parseInt(document.getElementById('sucursal').value)
+        };
+
+        const url = id ? `/api/usuarios/${id}` : '/api/usuarios';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
+            if (res.ok) {
+                cerrarModal();
+                cargarDatos();
+            } else {
+                const err = await res.json();
+                alert(err.mensaje ?? 'Error al guardar');
+            }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    async function cambiarEstado(id, activo) {
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/usuarios/${id}/estado?activo=${activo}`, {method: 'PATCH', headers: h});
+            if (res.ok) cargarDatos();
+            else alert('Error al cambiar estado');
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    cargarFiltros();
+    cargarDatos();
+</script>
+</body>
+</html>

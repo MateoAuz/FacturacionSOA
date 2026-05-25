@@ -13,6 +13,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -28,6 +29,15 @@ public class ClienteController {
     @Operation(summary = "Listar todos los clientes")
     public ResponseEntity<ApiResponseDTO<List<ClienteResponseDTO>>> listar() {
         return ResponseEntity.ok(ApiResponseDTO.ok(clienteService.listarTodos()));
+    }
+    @GetMapping("/paginado")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Listar clientes paginado con búsqueda")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<ClienteResponseDTO>>> buscarPaginado(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(clienteService.buscarPaginado(search, page, size)));
     }
 
     @GetMapping("/{id}")

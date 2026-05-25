@@ -13,6 +13,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -73,6 +74,18 @@ public class ProductoController {
             @PathVariable Integer id, @Valid @RequestBody ProductoRequestDTO dto) {
         return ResponseEntity.ok(ApiResponseDTO.ok("Producto actualizado", productoService.actualizar(id, dto)));
     }
+    @GetMapping("/paginado")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Listar productos paginado con búsqueda y filtros")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<ProductoResponseDTO>>> buscarPaginado(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer idCategoria,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(productoService.buscarPaginado(search, idCategoria, page, size)));
+    }
+
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")

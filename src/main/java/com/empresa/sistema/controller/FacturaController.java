@@ -11,6 +11,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
 @RequestMapping("/api/facturas")
@@ -41,6 +42,17 @@ public class FacturaController {
     public ResponseEntity<ApiResponseDTO<FacturaResponseDTO>> generar(@PathVariable Integer idVenta) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponseDTO.ok("Factura generada", facturaService.generarFactura(idVenta)));
+    }
+
+    @GetMapping("/paginado")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO')")
+    @Operation(summary = "Listar facturas paginado con búsqueda y filtros")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<FacturaResponseDTO>>> buscarPaginado(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String estado,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(facturaService.buscarPaginado(search, estado, page, size)));
     }
 
     @GetMapping("/{id}/pdf")

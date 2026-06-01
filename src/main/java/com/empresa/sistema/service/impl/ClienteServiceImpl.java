@@ -73,6 +73,14 @@ public class ClienteServiceImpl implements ClienteService {
     }
 
     @Override
+    public void cambiarEstado(Integer id, Boolean activo) {
+        Cliente c = clienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado: " + id));
+        c.setActivo(activo);
+        clienteRepository.save(c);
+    }
+
+    @Override
     public List<ClienteResponseDTO> buscarPorNombre(String nombre) {
         return clienteRepository.findByNombresContainingIgnoreCaseOrApellidosContainingIgnoreCase(nombre, nombre)
                 .stream().map(this::toDTO).collect(Collectors.toList());

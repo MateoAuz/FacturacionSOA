@@ -13,6 +13,5 @@ public interface InventarioService {
     void ajustarStock(Integer idProducto, Integer idSucursal, Integer cantidad);
     PageResponseDTO<InventarioResponseDTO> buscarPaginado(String search, Integer idSucursal, int page, int size);
     InventarioResponseDTO buscarPorId(Integer id);
-
-
+    List<InventarioResponseDTO> listarPorProducto(Integer idProducto);
 }

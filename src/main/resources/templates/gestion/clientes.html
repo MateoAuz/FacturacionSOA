@@ -1,6 +1,48 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout :: head('Clientes')}"></head>
+<style>
+    /* Estilos adicionales para validación */
+    .field-error {
+        color: #dc2626; font-size: 11px; margin-top: 4px;
+        display: none; font-weight: 500;
+    }
+    .field-error.visible { display: block; }
+    .form-group input.error, .form-group select.error {
+        border-color: #dc2626 !important;
+        background: #fff5f5;
+    }
+    .form-group input.ok {
+        border-color: #059669 !important;
+    }
+    .modal-xl {
+        max-width: 720px !important;
+    }
+    .modal-section {
+        background: #f8fafc; border-radius: 8px;
+        padding: 16px; margin-bottom: 16px;
+    }
+    .modal-section-title {
+        font-size: 11px; font-weight: 700; color: #4C97D2;
+        text-transform: uppercase; letter-spacing: 1px;
+        margin-bottom: 14px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .form-group { margin-bottom: 0; }
+    .form-group label {
+        display: block; font-size: 11px; font-weight: 700;
+        color: #12274B; margin-bottom: 5px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .form-group input, .form-group select {
+        width: 100%; padding: 9px 12px;
+        border: 1.5px solid #D0EDFC; border-radius: 7px;
+        font-size: 13px; outline: none; color: #12274B;
+        transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: #1468B1; }
+</style>
 <body>
 <div th:replace="~{layout :: sidebar('clientes')}"></div>
 
@@ -13,7 +55,7 @@
     <div class="card-box">
         <div class="card-box-header">
             <h2>Listado de Clientes</h2>
-            <button class="btn btn-primary" id="btnNuevo" onclick="abrirModal()">+ Nuevo Cliente</button>
+            <button class="btn btn-primary" onclick="abrirModalNuevo()">+ Nuevo Cliente</button>
         </div>
 
         <!-- Filtros -->
@@ -21,6 +63,12 @@
             <input type="text" id="buscador" placeholder="Buscar por nombre, identificación o correo..."
                    oninput="resetPagina()"
                    style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+            <select id="filtroEstado" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:140px">
+                <option value="">Todos</option>
+                <option value="true">Activos</option>
+                <option value="false">Inactivos</option>
+            </select>
             <select id="filtroSize" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
                 <option value="10">10 por página</option>
@@ -32,7 +80,7 @@
         <table>
             <thead>
             <tr>
-                <th>Identificación</th>
+                <th>Tipo / Identificación</th>
                 <th>Nombres</th>
                 <th>Apellidos</th>
                 <th>Correo</th>
@@ -46,7 +94,6 @@
             </tbody>
         </table>
 
-        <!-- Paginación -->
         <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
             <span id="infoPagina" style="font-size:13px;color:#888"></span>
             <div style="display:flex;gap:6px;" id="controlesPagina"></div>
@@ -54,105 +101,140 @@
     </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal Cliente -->
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
-        <h3 id="modalTitulo">Nuevo Cliente</h3>
+    <div class="modal modal-xl">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <h3 id="modalTitulo" style="margin:0;font-size:17px;color:#12274B;">Nuevo Cliente</h3>
+            <button onclick="cerrarModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#888;line-height:1;">×</button>
+        </div>
         <input type="hidden" id="clienteId"/>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Tipo identificación</label>
-                <select id="tipoIdentificacion">
-                    <option value="CEDULA">Cédula</option>
-                    <option value="RUC">RUC</option>
-                    <option value="PASAPORTE">Pasaporte</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Identificación</label>
-                <input type="text" id="identificacion" placeholder="Ej: 1234567890"/>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Nombres</label>
-                <input type="text" id="nombres" placeholder="Nombres"/>
-            </div>
-            <div class="form-group">
-                <label>Apellidos</label>
-                <input type="text" id="apellidos" placeholder="Apellidos"/>
+
+        <!-- Identificación -->
+        <div class="modal-section">
+            <div class="modal-section-title">Identificación</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Tipo de Identificación</label>
+                    <select id="tipoIdentificacion" onchange="actualizarReglasIdentificacion()">
+                        <option value="CEDULA">Cédula (10 dígitos)</option>
+                        <option value="RUC">RUC (13 dígitos)</option>
+                        <option value="PASAPORTE">Pasaporte</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Número de Identificación</label>
+                    <input type="text" id="identificacion" placeholder="Ej: 1234567890"
+                           oninput="validarIdentificacion()" onblur="validarIdentificacion()"/>
+                    <span class="field-error" id="err-identificacion"></span>
+                </div>
             </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Correo</label>
-                <input type="email" id="correo" placeholder="correo@ejemplo.com"/>
+
+        <!-- Datos personales -->
+        <div class="modal-section">
+            <div class="modal-section-title">Datos Personales</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Nombres <span style="color:#dc2626">*</span></label>
+                    <input type="text" id="nombres" placeholder="JUAN PABLO"
+                           oninput="autoMayus(this); validarTexto(this,'err-nombres','Nombres')"
+                           onblur="validarTexto(this,'err-nombres','Nombres')"/>
+                    <span class="field-error" id="err-nombres"></span>
+                </div>
+                <div class="form-group">
+                    <label>Apellidos</label>
+                    <input type="text" id="apellidos" placeholder="PÉREZ TORRES"
+                           oninput="autoMayus(this)"
+                           onblur="autoMayus(this)"/>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Teléfono</label>
-                <input type="text" id="telefono" placeholder="0999999999"/>
+            <div class="grid-2" style="margin-top:14px;">
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="correo" placeholder="ejemplo@correo.com"
+                           oninput="validarCorreo()" onblur="validarCorreo()"/>
+                    <span class="field-error" id="err-correo"></span>
+                </div>
+                <div class="form-group">
+                    <label>Teléfono</label>
+                    <input type="text" id="telefono" placeholder="0999999999"
+                           oninput="validarTelefono()" onblur="validarTelefono()"
+                           maxlength="15"/>
+                    <span class="field-error" id="err-telefono"></span>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top:14px;">
+                <label>Dirección</label>
+                <input type="text" id="direccion" placeholder="AV. PRINCIPAL 123"
+                       oninput="autoMayus(this)"
+                       onblur="autoMayus(this)"/>
             </div>
         </div>
-        <div class="form-group">
-            <label>Dirección</label>
-            <input type="text" id="direccion" placeholder="Dirección opcional"/>
-        </div>
-        <div class="modal-footer">
+
+        <div class="modal-footer" style="margin-top:8px;">
             <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarCliente()">Guardar</button>
+            <button class="btn btn-primary" id="btnGuardar" onclick="guardarCliente()">Guardar Cliente</button>
         </div>
     </div>
 </div>
 
 <div th:replace="~{layout :: scripts}"></div>
 <script>
-    if (rol === 'BODEGUERO') window.location.href = '/dashboard';
+    if (rol === 'CAJERO') window.location.href = '/ventas';
+    if (rol === 'BODEGUERO') window.location.href = '/inventario';
 
     let paginaActual = 0;
     let totalPaginas = 0;
 
-    function resetPagina() {
-        paginaActual = 0;
-        cargarDatos();
-    }
+    function resetPagina() { paginaActual = 0; cargarDatos(); }
 
     async function cargarDatos() {
         const h = authHeaders();
         const search = document.getElementById('buscador').value;
         const size = document.getElementById('filtroSize').value;
+        const estado = document.getElementById('filtroEstado').value;
 
         let url = `/api/clientes/paginado?page=${paginaActual}&size=${size}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
-
+        // El backend filtra todos; filtramos activo en frontend por ahora
         try {
             const res = await fetch(url, {headers: h});
             const data = await res.json();
-            const page = data.datos ?? data;
+            let page = data.datos ?? data;
+            let contenido = page.contenido ?? [];
+
+            if (estado !== '') contenido = contenido.filter(c => String(c.activo) === estado);
 
             totalPaginas = page.totalPaginas;
 
             document.getElementById('infoPagina').textContent =
-                `Mostrando ${page.contenido.length} de ${page.totalElementos} clientes — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
+                `Mostrando ${contenido.length} de ${page.totalElementos} clientes — Página ${page.paginaActual + 1} de ${page.totalPaginas || 1}`;
 
-            if (!page.contenido.length) {
+            if (!contenido.length) {
                 document.getElementById('tablaClientes').innerHTML =
                     '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">No se encontraron clientes</td></tr>';
                 document.getElementById('controlesPagina').innerHTML = '';
                 return;
             }
 
-            document.getElementById('tablaClientes').innerHTML = page.contenido.map(c => `
+            document.getElementById('tablaClientes').innerHTML = contenido.map(c => `
                 <tr>
-                    <td>${c.identificacion}</td>
+                    <td>
+                        <span style="font-size:10px;font-weight:700;color:#4C97D2;background:#e8f4fd;padding:2px 6px;border-radius:4px;">${c.tipoIdentificacion}</span><br/>
+                        <span style="font-size:13px;margin-top:2px;display:inline-block">${c.identificacion}</span>
+                    </td>
                     <td>${c.nombres}</td>
                     <td>${c.apellidos ?? '-'}</td>
-                    <td>${c.correo ?? '-'}</td>
+                    <td style="font-size:12px">${c.correo ?? '-'}</td>
                     <td>${c.telefono ?? '-'}</td>
                     <td><span class="badge ${c.activo ? 'badge-success' : 'badge-danger'}">${c.activo ? 'Activo' : 'Inactivo'}</span></td>
-                    <td>
-                        ${rol === 'ADMIN' || rol === 'CAJERO' ? `
+                    <td style="display:flex;gap:6px;flex-wrap:wrap;">
                         <button class="btn btn-primary btn-sm" onclick="editarCliente(${c.idCliente})">Editar</button>
-                        ` : '-'}
+                        <button class="btn btn-sm" onclick="cambiarEstado(${c.idCliente}, ${!c.activo})"
+                            style="background:${c.activo ? '#fee2e2' : '#d1fae5'};color:${c.activo ? '#dc2626' : '#065f46'}">
+                            ${c.activo ? 'Desactivar' : 'Activar'}
+                        </button>
                     </td>
                 </tr>
             `).join('');
@@ -163,23 +245,17 @@
 
     function renderPaginacion() {
         const cont = document.getElementById('controlesPagina');
-        let html = '';
-
-        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
+        let html = `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
             ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
             style="background:#f0f4f8;color:#333">Anterior</button>`;
-
         for (let i = 0; i < totalPaginas; i++) {
-            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2)
                 html += `<button class="btn btn-sm" onclick="irPagina(${i})"
                     style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
-            }
         }
-
         html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
             ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
             style="background:#f0f4f8;color:#333">Siguiente</button>`;
-
         cont.innerHTML = html;
     }
 
@@ -189,17 +265,112 @@
         cargarDatos();
     }
 
-    function abrirModal(limpiar = true) {
-        if (limpiar) {
-            document.getElementById('modalTitulo').textContent = 'Nuevo Cliente';
-            document.getElementById('clienteId').value = '';
-            document.getElementById('identificacion').value = '';
-            document.getElementById('nombres').value = '';
-            document.getElementById('apellidos').value = '';
-            document.getElementById('correo').value = '';
-            document.getElementById('telefono').value = '';
-            document.getElementById('direccion').value = '';
+    /* ── Validaciones ─────────────────────────────────────── */
+
+    function autoMayus(el) {
+        const pos = el.selectionStart;
+        el.value = el.value.toUpperCase();
+        try { el.setSelectionRange(pos, pos); } catch(e){}
+    }
+
+    function mostrarError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.classList.toggle('visible', !!msg);
+        const input = el.previousElementSibling;
+        if (input && (input.tagName === 'INPUT' || input.tagName === 'SELECT')) {
+            input.classList.toggle('error', !!msg);
+            input.classList.toggle('ok', !msg && input.value.trim() !== '');
         }
+    }
+
+    function actualizarReglasIdentificacion() {
+        const tipo = document.getElementById('tipoIdentificacion').value;
+        const inp = document.getElementById('identificacion');
+        if (tipo === 'CEDULA') inp.placeholder = 'Ej: 1723456789 (10 dígitos)';
+        else if (tipo === 'RUC') inp.placeholder = 'Ej: 1723456789001 (13 dígitos)';
+        else inp.placeholder = 'Ej: A1234567 (5-20 chars)';
+        validarIdentificacion();
+    }
+
+    function validarIdentificacion() {
+        const tipo = document.getElementById('tipoIdentificacion').value;
+        const val = document.getElementById('identificacion').value.trim();
+        if (!val) { mostrarError('err-identificacion', ''); return true; }
+
+        if (tipo === 'CEDULA') {
+            if (!/^\d{10}$/.test(val)) {
+                mostrarError('err-identificacion', 'La cédula debe tener exactamente 10 dígitos numéricos');
+                return false;
+            }
+        } else if (tipo === 'RUC') {
+            if (!/^\d{13}$/.test(val)) {
+                mostrarError('err-identificacion', 'El RUC debe tener exactamente 13 dígitos numéricos');
+                return false;
+            }
+        } else {
+            if (!/^[A-Za-z0-9]{5,20}$/.test(val)) {
+                mostrarError('err-identificacion', 'Pasaporte: 5 a 20 caracteres alfanuméricos');
+                return false;
+            }
+        }
+        mostrarError('err-identificacion', '');
+        return true;
+    }
+
+    function validarTexto(el, errId, label) {
+        const val = el.value.trim();
+        if (!val) { mostrarError(errId, `${label} es obligatorio`); return false; }
+        mostrarError(errId, '');
+        return true;
+    }
+
+    function validarCorreo() {
+        const val = document.getElementById('correo').value.trim();
+        if (!val) { mostrarError('err-correo', ''); return true; }
+        const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+        mostrarError('err-correo', ok ? '' : 'Formato de correo inválido');
+        return ok;
+    }
+
+    function validarTelefono() {
+        const val = document.getElementById('telefono').value.trim();
+        if (!val) { mostrarError('err-telefono', ''); return true; }
+        const ok = /^[+]?\d{7,15}$/.test(val);
+        mostrarError('err-telefono', ok ? '' : 'Teléfono: 7-15 dígitos (puede iniciar con +)');
+        return ok;
+    }
+
+    function validarFormulario() {
+        const idOk = validarIdentificacion();
+        const nomOk = validarTexto(document.getElementById('nombres'), 'err-nombres', 'Nombres');
+        const corrOk = validarCorreo();
+        const telOk = validarTelefono();
+        return idOk && nomOk && corrOk && telOk;
+    }
+
+    /* ── Modal ────────────────────────────────────────────── */
+
+    function limpiarFormulario() {
+        ['clienteId','identificacion','nombres','apellidos','correo','telefono','direccion'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        document.getElementById('tipoIdentificacion').value = 'CEDULA';
+        ['err-identificacion','err-nombres','err-correo','err-telefono'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = ''; el.classList.remove('visible'); }
+        });
+        ['identificacion','nombres','apellidos','correo','telefono','direccion'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.classList.remove('error','ok'); }
+        });
+    }
+
+    function abrirModalNuevo() {
+        limpiarFormulario();
+        document.getElementById('modalTitulo').textContent = 'Nuevo Cliente';
+        actualizarReglasIdentificacion();
         document.getElementById('modalOverlay').classList.add('open');
     }
 
@@ -212,33 +383,42 @@
         const res = await fetch(`/api/clientes/${id}`, {headers: h});
         const data = await res.json();
         const c = data.datos ?? data;
+
+        limpiarFormulario();
         document.getElementById('modalTitulo').textContent = 'Editar Cliente';
         document.getElementById('clienteId').value = c.idCliente;
-        document.getElementById('identificacion').value = c.identificacion;
-        document.getElementById('nombres').value = c.nombres;
+        document.getElementById('tipoIdentificacion').value = c.tipoIdentificacion ?? 'CEDULA';
+        document.getElementById('identificacion').value = c.identificacion ?? '';
+        document.getElementById('nombres').value = c.nombres ?? '';
         document.getElementById('apellidos').value = c.apellidos ?? '';
         document.getElementById('correo').value = c.correo ?? '';
         document.getElementById('telefono').value = c.telefono ?? '';
         document.getElementById('direccion').value = c.direccion ?? '';
-        document.getElementById('tipoIdentificacion').value = c.tipoIdentificacion ?? 'CEDULA';
-        abrirModal(false);
+        actualizarReglasIdentificacion();
+        document.getElementById('modalOverlay').classList.add('open');
     }
 
     async function guardarCliente() {
+        if (!validarFormulario()) return;
+
         const h = authHeaders();
         const id = document.getElementById('clienteId').value;
         const body = {
             tipoIdentificacion: document.getElementById('tipoIdentificacion').value,
-            identificacion: document.getElementById('identificacion').value,
-            nombres: document.getElementById('nombres').value,
-            apellidos: document.getElementById('apellidos').value,
-            correo: document.getElementById('correo').value,
-            telefono: document.getElementById('telefono').value,
-            direccion: document.getElementById('direccion').value
+            identificacion: document.getElementById('identificacion').value.trim(),
+            nombres: document.getElementById('nombres').value.trim(),
+            apellidos: document.getElementById('apellidos').value.trim() || null,
+            correo: document.getElementById('correo').value.trim() || null,
+            telefono: document.getElementById('telefono').value.trim() || null,
+            direccion: document.getElementById('direccion').value.trim() || null
         };
 
         const url = id ? `/api/clientes/${id}` : '/api/clientes';
         const method = id ? 'PUT' : 'POST';
+
+        const btn = document.getElementById('btnGuardar');
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
 
         try {
             const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
@@ -249,6 +429,21 @@
                 const err = await res.json();
                 alert(err.mensaje ?? 'Error al guardar');
             }
+        } catch(e) { alert('Error de conexión'); }
+        finally {
+            btn.disabled = false;
+            btn.textContent = 'Guardar Cliente';
+        }
+    }
+
+    async function cambiarEstado(id, activo) {
+        const msg = activo ? '¿Activar este cliente?' : '¿Desactivar este cliente?';
+        if (!confirm(msg)) return;
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/clientes/${id}/estado?activo=${activo}`, {method: 'PATCH', headers: h});
+            if (res.ok) cargarDatos();
+            else alert('Error al cambiar estado');
         } catch(e) { alert('Error de conexión'); }
     }
 

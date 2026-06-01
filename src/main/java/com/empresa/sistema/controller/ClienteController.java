@@ -78,6 +78,15 @@ public class ClienteController {
         return ResponseEntity.ok(ApiResponseDTO.ok("Cliente actualizado", clienteService.actualizar(id, dto)));
     }
 
+    @PatchMapping("/{id}/estado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cambiar estado activo/inactivo de cliente")
+    public ResponseEntity<ApiResponseDTO<Void>> cambiarEstado(
+            @PathVariable Integer id, @RequestParam Boolean activo) {
+        clienteService.cambiarEstado(id, activo);
+        return ResponseEntity.ok(ApiResponseDTO.ok("Estado actualizado", null));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Eliminar cliente")

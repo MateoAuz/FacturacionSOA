@@ -137,42 +137,35 @@
 
         if (!token) window.location.href = '/login';
 
-        if (document.getElementById('sidebarUser'))
-            document.getElementById('sidebarUser').textContent = username + ' · ' + rol;
-        if (document.getElementById('userDisplay'))
-            document.getElementById('userDisplay').textContent = username + ' — ' + rol;
-
         const menuAdmin = `
         <div class="nav-section">Principal</div>
         <a href="/dashboard" class="nav-item ${_active==='dashboard'?'active':''}">Dashboard</a>
         <a href="/usuarios" class="nav-item ${_active==='usuarios'?'active':''}">Usuarios</a>
         <div class="nav-section">Gestión</div>
-        <a href="/productos" class="nav-item ${_active==='productos'?'active':''}">Productos</a>
+        <a href="/productos" class="nav-item ${_active==='productos'||_active==='inventario'?'active':''}">Inventario</a>
         <a href="/clientes" class="nav-item ${_active==='clientes'?'active':''}">Clientes</a>
-        <a href="/inventario" class="nav-item ${_active==='inventario'?'active':''}">Inventario</a>
         <div class="nav-section">Operaciones</div>
-        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}">Ventas</a>
+        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}">Facturar</a>
         <a href="/facturas" class="nav-item ${_active==='facturas'?'active':''}">Facturas</a>
     `;
-        const menuCajero = `
-        <div class="nav-section">Principal</div>
-        <a href="/dashboard" class="nav-item ${_active==='dashboard'?'active':''}">Dashboard</a>
+        const menuVendedor = `
         <div class="nav-section">Operaciones</div>
-        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}">Ventas</a>
+        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}">Facturar</a>
         <a href="/facturas" class="nav-item ${_active==='facturas'?'active':''}">Facturas</a>
-        <a href="/clientes" class="nav-item ${_active==='clientes'?'active':''}">Clientes</a>
     `;
         const menuBodeguero = `
-        <div class="nav-section">Principal</div>
-        <a href="/dashboard" class="nav-item ${_active==='dashboard'?'active':''}">Dashboard</a>
         <div class="nav-section">Bodega</div>
-        <a href="/inventario" class="nav-item ${_active==='inventario'?'active':''}">Inventario</a>
-        <a href="/productos" class="nav-item ${_active==='productos'?'active':''}">Productos</a>
+        <a href="/productos" class="nav-item ${_active==='productos'||_active==='inventario'?'active':''}">Inventario</a>
     `;
 
-        const menus = { ADMIN: menuAdmin, CAJERO: menuCajero, BODEGUERO: menuBodeguero };
+        const rolDisplay = { ADMIN: 'Administrador', CAJERO: 'Vendedor', BODEGUERO: 'Bodeguero' };
+        const menus = { ADMIN: menuAdmin, CAJERO: menuVendedor, BODEGUERO: menuBodeguero };
         if (document.getElementById('navMenu'))
-            document.getElementById('navMenu').innerHTML = menus[rol] || menuCajero;
+            document.getElementById('navMenu').innerHTML = menus[rol] || menuVendedor;
+        if (document.getElementById('sidebarUser'))
+            document.getElementById('sidebarUser').textContent = username + ' · ' + (rolDisplay[rol] || rol);
+        if (document.getElementById('userDisplay'))
+            document.getElementById('userDisplay').textContent = username + ' — ' + (rolDisplay[rol] || rol);
 
         function logout() {
             localStorage.clear();

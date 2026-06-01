@@ -2,6 +2,7 @@ package com.empresa.sistema.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -11,29 +12,73 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Factura {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_factura")
     private Integer idFactura;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_venta", nullable = false, unique = true)
-    private Venta venta;
-
     @Column(name = "numero_secuencial", nullable = false, unique = true, length = 17)
     private String numeroSecuencial;
 
+    // ── Datos del cliente / usuario / sucursal ────────────────────
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_cliente", nullable = false)
+    private Cliente cliente;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_usuario", nullable = false)
+    private Usuario usuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_sucursal", nullable = false)
+    private Sucursal sucursal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_iva", nullable = false)
+    private ConfiguracionIva configuracionIva;
+
+    // ── Datos económicos ──────────────────────────────────────────
     @Builder.Default
-    @Column(name = "fecha_emision", nullable = false)
-    private LocalDateTime fechaEmision = LocalDateTime.now();
+    @Column(name = "fecha_factura", nullable = false)
+    private LocalDateTime fechaFactura = LocalDateTime.now();
+
+    @Builder.Default
+    @Column(name = "subtotal", nullable = false, precision = 12, scale = 2)
+    private BigDecimal subtotal = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "iva_valor", nullable = false, precision = 12, scale = 2)
+    private BigDecimal ivaValor = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "total", nullable = false, precision = 12, scale = 2)
+    private BigDecimal total = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "metodo_pago", nullable = false, length = 15)
+    private MetodoPago metodoPago = MetodoPago.EFECTIVO;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 10)
+    private EstadoFactura estado = EstadoFactura.GUARDADA;
+
+    @Column(name = "observacion", length = 200)
+    private String observacion;
+
+    // ── Campos SRI (Fase 2) ───────────────────────────────────────
+    @Column(name = "fecha_emision")
+    private LocalDateTime fechaEmision;
 
     @Column(name = "pdf_path", length = 255)
     private String pdfPath;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "estado", nullable = false, length = 10)
-    private EstadoFactura estado = EstadoFactura.EMITIDA;
+    @Column(name = "estado_sri", nullable = false, length = 15)
+    private EstadoSri estadoSri = EstadoSri.NO_ENVIADO;
 
     @Column(name = "clave_acceso", length = 49)
     private String claveAcceso;
@@ -53,14 +98,11 @@ public class Factura {
     @Column(name = "fecha_autorizacion")
     private LocalDateTime fechaAutorizacion;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @Column(name = "estado_sri", nullable = false, length = 15)
-    private EstadoSri estadoSri = EstadoSri.NO_ENVIADO;
-
     @Column(name = "mensaje_sri", length = 500)
     private String mensajeSri;
 
-    public enum EstadoFactura { EMITIDA, ANULADA }
-    public enum EstadoSri { NO_ENVIADO, ENVIADO, AUTORIZADO, RECHAZADO }
+    // ── Enums ────────────────────────────────────────────────────
+    public enum MetodoPago   { EFECTIVO, TARJETA, TRANSFERENCIA }
+    public enum EstadoFactura { GUARDADA, EMITIDA, ANULADA }
+    public enum EstadoSri    { NO_ENVIADO, ENVIADO, AUTORIZADO, RECHAZADO }
 }

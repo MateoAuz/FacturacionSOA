@@ -8,7 +8,6 @@ public class InventarioResponseDTO {
     private String codigoProducto;
     private String sucursal;
     private Integer cantidad;
-    private Integer stockMinimo;
     private String estadoStock;
     private LocalDateTime ultimaActualizacion;
 }

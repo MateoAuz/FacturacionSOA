@@ -182,7 +182,8 @@
                 localStorage.setItem('rol', data.datos.rol);
                 localStorage.setItem('idSucursal', data.datos.idSucursal);
                 localStorage.setItem('sucursal', data.datos.sucursal);
-                window.location.href = '/dashboard';
+                const rolRedireccion = { ADMIN: '/dashboard', CAJERO: '/ventas', BODEGUERO: '/productos' };
+                window.location.href = rolRedireccion[data.datos.rol] || '/dashboard';
             } else {
                 mostrarError('Credenciales incorrectas');
             }

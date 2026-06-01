@@ -16,7 +16,7 @@ import java.util.List;
 import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
-@RequestMapping("/api/inventario")
+@RequestMapping("/api/stock")
 @RequiredArgsConstructor
 @Tag(name = "Inventario", description = "Gestión de inventario por sucursal")
 @SecurityRequirement(name = "bearerAuth")
@@ -30,6 +30,14 @@ public class InventarioController {
     public ResponseEntity<ApiResponseDTO<List<InventarioResponseDTO>>> listarPorSucursal(
             @PathVariable Integer idSucursal) {
         return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.listarPorSucursal(idSucursal)));
+    }
+
+    @GetMapping("/producto/{idProducto}")
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
+    @Operation(summary = "Listar inventario de un producto en todas las sucursales")
+    public ResponseEntity<ApiResponseDTO<List<InventarioResponseDTO>>> listarPorProducto(
+            @PathVariable Integer idProducto) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.listarPorProducto(idProducto)));
     }
 
     @GetMapping("/producto/{idProducto}/sucursal/{idSucursal}")

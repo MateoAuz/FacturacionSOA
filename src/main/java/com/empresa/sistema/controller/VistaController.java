@@ -28,7 +28,7 @@ public class VistaController {
 
     @GetMapping("/inventario")
     public String inventario() {
-        return "gestion/inventario";
+        return "gestion/productos";   // Inventario fusionado con Productos
     }
 
     @GetMapping("/ventas")
@@ -39,6 +39,11 @@ public class VistaController {
     @GetMapping("/facturas")
     public String facturas() {
         return "operaciones/facturas";
+    }
+
+    @GetMapping("/facturas/{id}")
+    public String facturaDetalle() {
+        return "operaciones/factura-detalle";
     }
 
     @GetMapping("/usuarios")

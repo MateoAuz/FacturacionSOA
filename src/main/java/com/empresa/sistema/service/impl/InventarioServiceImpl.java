@@ -38,8 +38,13 @@ public class InventarioServiceImpl implements InventarioService {
 
     @Override
     public InventarioResponseDTO buscarPorProductoYSucursal(Integer idProducto, Integer idSucursal) {
-        return toDTO(inventarioRepository.findByProducto_IdProductoAndSucursal_IdSucursal(idProducto, idSucursal)
-                .orElseThrow(() -> new RuntimeException("Inventario no encontrado")));
+        return inventarioRepository
+                .findByProducto_IdProductoAndSucursal_IdSucursal(idProducto, idSucursal)
+                .map(this::toDTO)
+                .orElseGet(() -> InventarioResponseDTO.builder()
+                        .cantidad(0)
+                        .estadoStock("SIN STOCK")
+                        .build());
     }
 
     @Override
@@ -58,7 +63,6 @@ public class InventarioServiceImpl implements InventarioService {
                 .findByProducto_IdProductoAndSucursal_IdSucursal(dto.getIdProducto(), dto.getIdSucursal())
                 .orElse(Inventario.builder().producto(producto).sucursal(sucursal).build());
         inv.setCantidad(dto.getCantidad());
-        inv.setStockMinimo(dto.getStockMinimo());
         inv.setUltimaActualizacion(LocalDateTime.now());
         return toDTO(inventarioRepository.save(inv));
     }
@@ -90,16 +94,20 @@ public class InventarioServiceImpl implements InventarioService {
         inventarioRepository.save(inv);
     }
 
+    @Override
+    public List<InventarioResponseDTO> listarPorProducto(Integer idProducto) {
+        return inventarioRepository.findByProducto_IdProducto(idProducto)
+                .stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
     private InventarioResponseDTO toDTO(Inventario i) {
-        String estado = i.getCantidad() <= 0 ? "SIN STOCK"
-                : i.getCantidad() <= i.getStockMinimo() ? "STOCK BAJO" : "OK";
+        String estado = i.getCantidad() <= 0 ? "SIN STOCK" : "OK";
         return InventarioResponseDTO.builder()
                 .idInventario(i.getIdInventario())
                 .producto(i.getProducto().getNombre())
                 .codigoProducto(i.getProducto().getCodigo())
                 .sucursal(i.getSucursal().getNombre())
                 .cantidad(i.getCantidad())
-                .stockMinimo(i.getStockMinimo())
                 .estadoStock(estado)
                 .ultimaActualizacion(i.getUltimaActualizacion())
                 .build();

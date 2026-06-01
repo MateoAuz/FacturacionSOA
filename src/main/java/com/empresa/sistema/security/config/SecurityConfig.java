@@ -47,6 +47,7 @@ public class SecurityConfig {
             "/clientes",
             "/ventas",
             "/facturas",
+            "/facturas/**",
             "/inventario",
             "/css/**",
             "/js/**",
@@ -62,10 +63,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
-                        // Inventario: ADMIN y BODEGUERO
-                        .requestMatchers("/api/inventario/**").hasAnyRole("ADMIN", "BODEGUERO")
-                        // Ventas y facturas: ADMIN y CAJERO
-                        .requestMatchers("/api/ventas/**", "/api/facturas/**").hasAnyRole("ADMIN", "CAJERO")
+                        // Stock: ADMIN y BODEGUERO
+                        .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "BODEGUERO")
+                        // Facturas (todas las operaciones): ADMIN y CAJERO
+                        .requestMatchers("/api/facturas/**").hasAnyRole("ADMIN", "CAJERO")
                         // Todo lo demas requiere autenticacion
                         .anyRequest().authenticated()
                 )

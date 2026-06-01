@@ -12,6 +12,7 @@ public interface ClienteService {
     ClienteResponseDTO crear(ClienteRequestDTO dto);
     ClienteResponseDTO actualizar(Integer id, ClienteRequestDTO dto);
     void eliminar(Integer id);
+    void cambiarEstado(Integer id, Boolean activo);
     List<ClienteResponseDTO> buscarPorNombre(String nombre);
     PageResponseDTO<ClienteResponseDTO> buscarPaginado(String search, int page, int size);
 }

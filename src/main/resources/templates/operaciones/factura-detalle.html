@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{layout :: head('Factura')}"></head>
+<style>
+    .detalle-card {
+        background:white;border-radius:12px;
+        box-shadow:0 2px 8px rgba(18,39,75,0.08);
+        border-top:4px solid #1468B1;
+        max-width:820px;
+    }
+    .factura-header {
+        padding:24px 28px;border-bottom:1px solid #f0f4f8;
+        display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;
+    }
+    .factura-num { font-size:22px;font-weight:800;color:#12274B; }
+    .factura-fecha { font-size:13px;color:#888;margin-top:4px; }
+    .badge-guardada { background:#fef3c7;color:#92400e;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700; }
+    .badge-emitida  { background:#d1fae5;color:#065f46;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700; }
+    .badge-anulada  { background:#fee2e2;color:#991b1b;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700; }
+    .info-grid { display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:24px 28px; }
+    .info-block h4 { font-size:11px;font-weight:700;color:#4C97D2;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px; }
+    .info-line { display:flex;gap:8px;font-size:13px;margin-bottom:6px; }
+    .info-line-label { color:#888;min-width:100px; }
+    .info-line-val { color:#12274B;font-weight:600; }
+    .items-section { padding:0 28px 24px; }
+    .items-section h4 { font-size:11px;font-weight:700;color:#4C97D2;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px; }
+    .items-table { width:100%;border-collapse:collapse;font-size:13px; }
+    .items-table th { background:#f8fafc;color:#12274B;font-size:11px;text-transform:uppercase;padding:10px 14px;font-weight:700;text-align:left; }
+    .items-table td { padding:10px 14px;border-top:1px solid #f0f4f8; }
+    .totales-section { background:#f8fafc;border-radius:0 0 8px 8px;padding:20px 28px; }
+    .total-row { display:flex;justify-content:space-between;padding:4px 0;font-size:13px; }
+    .total-row.final { font-size:17px;font-weight:800;color:#12274B;padding-top:10px;margin-top:6px;border-top:2px solid #1468B1; }
+    .acciones-bar {
+        display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+        padding:16px 28px;border-top:1px solid #f0f4f8;
+    }
+    .spinner { text-align:center;padding:60px;color:#888; }
+</style>
+<body>
+<div th:replace="~{layout :: sidebar('facturas')}"></div>
+
+<div class="main">
+    <div class="topbar" style="display:flex;align-items:center;gap:16px;">
+        <button onclick="history.back()" class="btn" style="background:#f0f4f8;color:#333;padding:8px 14px;font-size:13px;">← Volver</button>
+        <h1 style="margin:0;">Detalle de Factura</h1>
+        <span class="user-badge" id="userDisplay"></span>
+    </div>
+
+    <div id="loadingSpinner" class="spinner">Cargando factura...</div>
+    <div id="errorMsg" style="display:none;color:#dc2626;padding:20px;font-weight:600;"></div>
+
+    <div class="detalle-card" id="facturaCard" style="display:none;">
+
+        <!-- Cabecera -->
+        <div class="factura-header">
+            <div>
+                <div class="factura-num" id="fNumero">—</div>
+                <div class="factura-fecha" id="fFecha">—</div>
+            </div>
+            <div style="text-align:right;">
+                <span id="fEstadoBadge" class="badge-guardada">—</span>
+                <div id="fEstadoSri" style="font-size:11px;color:#888;margin-top:6px;"></div>
+            </div>
+        </div>
+
+        <!-- Info cliente + sucursal -->
+        <div class="info-grid">
+            <div class="info-block">
+                <h4>Cliente</h4>
+                <div class="info-line"><span class="info-line-label">Nombre:</span><span class="info-line-val" id="fCliente">—</span></div>
+                <div class="info-line"><span class="info-line-label">Identificación:</span><span class="info-line-val" id="fIdentificacion">—</span></div>
+            </div>
+            <div class="info-block">
+                <h4>Emisión</h4>
+                <div class="info-line"><span class="info-line-label">Sucursal:</span><span class="info-line-val" id="fSucursal">—</span></div>
+                <div class="info-line"><span class="info-line-label">Método pago:</span><span class="info-line-val" id="fMetodo">—</span></div>
+                <div class="info-line"><span class="info-line-label">Observación:</span><span class="info-line-val" id="fObservacion" style="color:#888;">—</span></div>
+            </div>
+        </div>
+
+        <!-- Detalle de productos -->
+        <div class="items-section">
+            <h4>Detalle de Productos</h4>
+            <table class="items-table">
+                <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Precio Unit.</th>
+                    <th>Cantidad</th>
+                    <th>Subtotal</th>
+                </tr>
+                </thead>
+                <tbody id="fDetalles">
+                <tr><td colspan="4" style="text-align:center;color:#aaa;padding:20px">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totales -->
+        <div class="totales-section">
+            <div class="total-row"><span style="color:#888">Subtotal</span><span id="fSubtotal">—</span></div>
+            <div class="total-row"><span id="fIvaLabel" style="color:#888">IVA</span><span id="fIva">—</span></div>
+            <div class="total-row final"><span>TOTAL</span><span id="fTotal">—</span></div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="acciones-bar" id="accionesBar"></div>
+    </div>
+</div>
+
+<div th:replace="~{layout :: scripts}"></div>
+<script>
+    if (rol === 'BODEGUERO') window.location.href = '/inventario';
+
+    const idFactura = parseInt(window.location.pathname.split('/').pop());
+    let facturaData = null;
+    let ventaData = null;
+
+    async function cargarFactura() {
+        const h = authHeaders();
+        try {
+            const resFact = await fetch(`/api/facturas/${idFactura}`, {headers: h});
+            if (!resFact.ok) { mostrarError('Factura no encontrada'); return; }
+            const dFact = await resFact.json();
+            facturaData = dFact.datos ?? dFact;
+
+            // Cargar venta para detalles y metodoPago
+            const resVenta = await fetch(`/api/ventas/${facturaData.idVenta}`, {headers: h});
+            if (resVenta.ok) {
+                const dVenta = await resVenta.json();
+                ventaData = dVenta.datos ?? dVenta;
+            }
+
+            renderFactura();
+        } catch(e) {
+            mostrarError('Error de conexión al cargar la factura');
+        }
+    }
+
+    function mostrarError(msg) {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    function renderFactura() {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('facturaCard').style.display = 'block';
+
+        const f = facturaData;
+        const v = ventaData;
+
+        document.getElementById('fNumero').textContent = f.numeroSecuencial ?? '—';
+        document.getElementById('fFecha').textContent = f.fechaEmision
+            ? new Date(f.fechaEmision).toLocaleString('es-EC', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+            : '—';
+
+        // Estado
+        const badgeMap = { GUARDADA: 'badge-guardada', EMITIDA: 'badge-emitida', ANULADA: 'badge-anulada' };
+        const labelMap = { GUARDADA: 'Guardada', EMITIDA: 'Emitida', ANULADA: 'Anulada' };
+        const badge = document.getElementById('fEstadoBadge');
+        badge.textContent = labelMap[f.estado] || f.estado;
+        badge.className = badgeMap[f.estado] || 'badge-guardada';
+        document.getElementById('fEstadoSri').textContent = `SRI: ${f.estadoSri ?? '—'}`;
+
+        document.getElementById('fCliente').textContent = f.cliente ?? '—';
+        document.getElementById('fIdentificacion').textContent = f.identificacionCliente ?? '—';
+        document.getElementById('fSucursal').textContent = f.sucursal ?? '—';
+
+        if (v) {
+            document.getElementById('fMetodo').textContent = v.metodoPago ?? '—';
+            document.getElementById('fObservacion').textContent = v.observacion || 'Sin observación';
+            document.getElementById('fSubtotal').textContent = v.subtotal ? `$${parseFloat(v.subtotal).toFixed(2)}` : '—';
+            document.getElementById('fIva').textContent = v.ivaValor ? `$${parseFloat(v.ivaValor).toFixed(2)}` : '—';
+        }
+
+        document.getElementById('fTotal').textContent = f.total ? `$${parseFloat(f.total).toFixed(2)}` : '—';
+
+        // Detalles de productos
+        if (v && v.detalles && v.detalles.length) {
+            document.getElementById('fDetalles').innerHTML = v.detalles.map(d => `
+                <tr>
+                    <td><strong>${d.producto ?? d.nombre ?? '—'}</strong></td>
+                    <td>$${parseFloat(d.precioUnitario).toFixed(2)}</td>
+                    <td>${d.cantidad}</td>
+                    <td><strong>$${parseFloat(d.subtotalLinea ?? d.subtotal ?? 0).toFixed(2)}</strong></td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('fDetalles').innerHTML =
+                '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:16px">Sin detalles disponibles</td></tr>';
+        }
+
+        renderAcciones();
+    }
+
+    function renderAcciones() {
+        const bar = document.getElementById('accionesBar');
+        const f = facturaData;
+        let html = `<a href="/facturas" class="btn" style="background:#f0f4f8;color:#333;">← Lista de Facturas</a>`;
+
+        if (f.estado === 'GUARDADA') {
+            html += `<button class="btn" onclick="emitirFactura()" style="background:#d1fae5;color:#065f46;font-weight:700;padding:10px 20px">
+                        Emitir Factura
+                     </button>`;
+        }
+        if (f.estado === 'EMITIDA') {
+            html += `<button class="btn" onclick="descargarPdf()" style="background:#fef3c7;color:#92400e;font-weight:700;padding:10px 20px">
+                        Descargar PDF
+                     </button>`;
+            html += `<button class="btn btn-danger" onclick="anularFactura()" style="padding:10px 20px">
+                        Anular Factura
+                     </button>`;
+        }
+
+        bar.innerHTML = html;
+    }
+
+    async function emitirFactura() {
+        if (!confirm('¿Emitir esta factura? Una vez emitida no se puede regresar a borrador.')) return;
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/facturas/${idFactura}/emitir`, {method:'POST', headers:h});
+            if (res.ok) { await cargarFactura(); }
+            else { const err = await res.json(); alert(err.mensaje ?? 'Error al emitir'); }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    async function descargarPdf() {
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/facturas/${idFactura}/pdf`, {headers:h});
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `factura-${idFactura}.pdf`; a.click();
+                window.URL.revokeObjectURL(url);
+            } else { alert('Error al generar el PDF'); }
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    async function anularFactura() {
+        if (!confirm('¿Anular esta factura? Esta acción no se puede deshacer.')) return;
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/facturas/${idFactura}/anular`, {method:'PATCH', headers:h});
+            if (res.ok) { await cargarFactura(); }
+            else alert('Error al anular la factura');
+        } catch(e) { alert('Error de conexión'); }
+    }
+
+    cargarFactura();
+</script>
+</body>
+</html>

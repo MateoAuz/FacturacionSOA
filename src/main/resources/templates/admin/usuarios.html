@@ -104,7 +104,7 @@
 
 <div th:replace="~{layout :: scripts}"></div>
 <script>
-    if (rol !== 'ADMIN') window.location.href = '/dashboard';
+    if (rol !== 'ADMIN') window.location.href = rol === 'BODEGUERO' ? '/inventario' : '/ventas';
 
     let paginaActual = 0;
     let totalPaginas = 0;

@@ -27,7 +27,7 @@ import org.springframework.data.domain.Sort;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(readOnly = true)
 public class InventarioServiceImpl implements InventarioService {
 
     private final InventarioRepository inventarioRepository;
@@ -42,6 +42,7 @@ public class InventarioServiceImpl implements InventarioService {
     }
 
     @Override
+    @Transactional
     public InventarioResponseDTO buscarPorProductoYSucursal(Integer idProducto, Integer idSucursal) {
         return inventarioRepository
                 .findByProducto_IdProductoAndSucursal_IdSucursal(idProducto, idSucursal)
@@ -104,6 +105,7 @@ public class InventarioServiceImpl implements InventarioService {
     }
 
     @Override
+    @Transactional
     public void ajustarStock(Integer idProducto, Integer idSucursal, Integer cantidad) {
         Inventario inv = inventarioRepository
                 .findByProducto_IdProductoAndSucursal_IdSucursal(idProducto, idSucursal)

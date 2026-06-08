@@ -106,10 +106,30 @@ public class InventarioServiceImpl implements InventarioService {
     public void ajustarStock(Integer idProducto, Integer idSucursal, Integer cantidad) {
         Inventario inv = inventarioRepository
                 .findByProducto_IdProductoAndSucursal_IdSucursal(idProducto, idSucursal)
-                .orElseThrow(() -> new RuntimeException("Inventario no encontrado"));
+                .orElseGet(() -> {
+                    // Si no existe registro (sucursal nunca tuvo ese producto), crearlo en 0
+                    Producto prod = productoRepository.findById(idProducto)
+                            .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+                    Sucursal suc = sucursalRepository.findById(idSucursal)
+                            .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"));
+                    Inventario nuevo = new Inventario();
+                    nuevo.setProducto(prod);
+                    nuevo.setSucursal(suc);
+                    nuevo.setCantidad(0);
+                    nuevo.setUltimaActualizacion(LocalDateTime.now());
+                    return nuevo;
+                });
         inv.setCantidad(inv.getCantidad() + cantidad);
         inv.setUltimaActualizacion(LocalDateTime.now());
         inventarioRepository.save(inv);
+    }
+
+    @Override
+    public int obtenerStockActual(Integer idProducto, Integer idSucursal) {
+        return inventarioRepository
+                .findByProducto_IdProductoAndSucursal_IdSucursal(idProducto, idSucursal)
+                .map(Inventario::getCantidad)
+                .orElse(0);
     }
 
     @Override

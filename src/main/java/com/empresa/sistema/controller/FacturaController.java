@@ -88,14 +88,17 @@ public class FacturaController {
     }
 
     // ── PDF ───────────────────────────────────────────────────────
+    // Sin @PreAuthorize: el acceso público está permitido en SecurityConfig
+    // para que el enlace del correo al cliente funcione sin login.
     @GetMapping("/{id}/pdf")
-    @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
-    @Operation(summary = "Descargar PDF de factura")
+    @Operation(summary = "Descargar PDF de factura (público — enlace de correo)")
     public ResponseEntity<byte[]> descargarPdf(@PathVariable Integer id) {
         byte[] pdf = facturaService.generarPdf(id);
+        FacturaResponseDTO factura = facturaService.buscarPorId(id);
+        String filename = "Factura_" + factura.getNumeroSecuencial().replace("/", "-") + ".pdf";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDispositionFormData("attachment", "factura-" + id + ".pdf");
+        headers.setContentDispositionFormData("inline", filename);
         return ResponseEntity.ok().headers(headers).body(pdf);
     }
 }

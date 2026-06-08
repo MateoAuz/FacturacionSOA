@@ -33,7 +33,7 @@ public class InventarioController {
     }
 
     @GetMapping("/producto/{idProducto}")
-    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO','CAJERO')")
     @Operation(summary = "Listar inventario de un producto en todas las sucursales")
     public ResponseEntity<ApiResponseDTO<List<InventarioResponseDTO>>> listarPorProducto(
             @PathVariable Integer idProducto) {
@@ -41,7 +41,7 @@ public class InventarioController {
     }
 
     @GetMapping("/producto/{idProducto}/sucursal/{idSucursal}")
-    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO','CAJERO')")
     @Operation(summary = "Consultar stock de un producto en una sucursal")
     public ResponseEntity<ApiResponseDTO<InventarioResponseDTO>> buscarStock(
             @PathVariable Integer idProducto, @PathVariable Integer idSucursal) {

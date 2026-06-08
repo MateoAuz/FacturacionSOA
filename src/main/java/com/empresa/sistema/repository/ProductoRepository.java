@@ -23,22 +23,18 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
                                   @Param("idCategoria") Integer idCategoria,
                                   Pageable pageable);
 
-    /** Filtra solo productos con stock > 0 en la sucursal indicada */
-    @Query(value = "SELECT p FROM Producto p " +
-            "JOIN Inventario i ON i.producto = p " +
+    /** Muestra TODOS los productos activos para una sucursal (incluye los sin stock para mostrar "Solicitar") */
+    @Query(value = "SELECT DISTINCT p FROM Producto p " +
             "WHERE p.activo = true " +
-            "AND i.sucursal.idSucursal = :idSucursal " +
-            "AND i.cantidad > 0 " +
+            "AND (:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria) " +
             "AND (:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "  OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%')))",
-           countQuery = "SELECT COUNT(p) FROM Producto p " +
-            "JOIN Inventario i ON i.producto = p " +
+           countQuery = "SELECT COUNT(DISTINCT p) FROM Producto p " +
             "WHERE p.activo = true " +
-            "AND i.sucursal.idSucursal = :idSucursal " +
-            "AND i.cantidad > 0 " +
+            "AND (:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria) " +
             "AND (:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
             "  OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Producto> buscarPaginadoConStock(@Param("search") String search,
-                                          @Param("idSucursal") Integer idSucursal,
+                                          @Param("idCategoria") Integer idCategoria,
                                           Pageable pageable);
 }

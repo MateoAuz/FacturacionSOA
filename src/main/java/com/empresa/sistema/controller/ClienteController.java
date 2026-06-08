@@ -35,9 +35,10 @@ public class ClienteController {
     @Operation(summary = "Listar clientes paginado con búsqueda")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ClienteResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String tipo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponseDTO.ok(clienteService.buscarPaginado(search, page, size)));
+        return ResponseEntity.ok(ApiResponseDTO.ok(clienteService.buscarPaginado(search, tipo, page, size)));
     }
 
     @GetMapping("/{id}")

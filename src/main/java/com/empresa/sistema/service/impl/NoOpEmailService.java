@@ -2,6 +2,8 @@ package com.empresa.sistema.service.impl;
 
 import com.empresa.sistema.entity.DetalleVenta;
 import com.empresa.sistema.entity.Factura;
+import com.empresa.sistema.entity.SolicitudStock;
+import com.empresa.sistema.entity.Usuario;
 import com.empresa.sistema.service.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,6 +19,11 @@ import java.util.List;
 @Service
 @ConditionalOnProperty(name = "app.mail.enabled", havingValue = "false", matchIfMissing = true)
 public class NoOpEmailService implements EmailService {
+
+    @Override
+    public void enviarSolicitudStock(SolicitudStock solicitud, List<Usuario> bodegueros) {
+        log.debug("NoOp: enviarSolicitudStock ignorado (mail desactivado)");
+    }
 
     @Override
     public void enviarFactura(Factura factura, List<DetalleVenta> detalles, byte[] pdfBytes) {

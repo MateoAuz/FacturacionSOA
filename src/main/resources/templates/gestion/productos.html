@@ -53,7 +53,14 @@
     <div class="card-box">
         <div class="card-box-header">
             <h2>Listado de Productos</h2>
-            <button class="btn btn-primary" id="btnNuevo" onclick="abrirModalNuevo()"><i class="bi bi-plus-circle-fill"></i> Nuevo Producto</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn" id="btnSolicitudes" onclick="abrirSolicitudesPanel()"
+                    style="display:none;background:#e8f4fd;color:#1468B1;border:1.5px solid #D0EDFC;position:relative;">
+                    <i class="bi bi-send"></i> Solicitudes
+                    <span id="badgeSolicitudes" style="display:none;position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:700;"></span>
+                </button>
+                <button class="btn btn-primary" id="btnNuevo" onclick="abrirModalNuevo()"><i class="bi bi-plus-circle-fill"></i> Nuevo Producto</button>
+            </div>
         </div>
 
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
@@ -549,13 +556,37 @@
         const cantidad = parseInt(cantidadEl.value);
         if (isNaN(cantidad) || cantidad < 0) { mostrarAlerta('Cantidad inválida', 'error'); return; }
 
-        const body = { idProducto, idSucursal, cantidad };
+        // Guardar los valores actuales de TODOS los inputs de stock antes del fetch
+        // para restaurarlos si el DOM los resetea inesperadamente
+        const valoresGuardados = {};
+        document.querySelectorAll('.stock-input').forEach(inp => {
+            valoresGuardados[inp.id] = inp.value;
+        });
+
+        const reqBody = { idProducto, idSucursal, cantidad };
         const url    = idInventario ? `/api/stock/${idInventario}` : '/api/stock';
         const method = idInventario ? 'PUT' : 'POST';
         try {
-            const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
+            const res = await fetch(url, {method, headers: h, body: JSON.stringify(reqBody)});
             if (res.ok) {
-                await cargarStockProducto(idProducto);
+                const data = await res.json();
+                const inv  = data.datos ?? data;
+                const newId = inv.idInventario ?? idInventario;
+                const row  = cantidadEl.closest('tr');
+                const badge = row.querySelector('.estado-badge-ok, .estado-badge-sin');
+                if (badge) {
+                    badge.textContent = cantidad > 0 ? 'OK' : 'SIN STOCK';
+                    badge.className   = cantidad > 0 ? 'estado-badge-ok' : 'estado-badge-sin';
+                }
+                const btn = row.querySelector('button');
+                if (btn) btn.setAttribute('onclick', `guardarStock(${idProducto}, ${idSucursal}, '${newId}')`);
+                cantidadEl.setAttribute('onkeyup', `if(event.key==='Enter')guardarStock(${idProducto},${idSucursal},'${newId}')`);
+                // Restaurar los valores de las otras filas (por si el DOM los reseteó)
+                document.querySelectorAll('.stock-input').forEach(inp => {
+                    if (inp.id !== `stock-${idSucursal}`) {
+                        inp.value = valoresGuardados[inp.id];
+                    }
+                });
                 mostrarAlerta('Stock actualizado', 'success');
             } else {
                 const err = await res.json();
@@ -614,6 +645,96 @@
         }
     }
 
+    /* ── Solicitudes pendientes (BODEGUERO) ── */
+    if (esBodeguero) {
+        document.getElementById('btnSolicitudes').style.display = 'inline-flex';
+        cargarBadgeSolicitudes();
+        setInterval(cargarBadgeSolicitudes, 30000);
+    }
+
+    async function cargarBadgeSolicitudes() {
+        try {
+            const h = authHeaders();
+            const res = await fetch('/api/solicitudes-stock/pendientes', {headers: h});
+            const data = await res.json();
+            const lista = data.datos ?? data;
+            const badge = document.getElementById('badgeSolicitudes');
+            if (lista.length > 0) {
+                badge.textContent = lista.length;
+                badge.style.display = '';
+            } else {
+                badge.style.display = 'none';
+            }
+        } catch(e) {}
+    }
+
+    function abrirSolicitudesPanel() {
+        document.getElementById('solicitudesPanelOv').classList.add('open');
+        cargarSolicitudesPendientes();
+    }
+    function cerrarSolicitudesPanel() {
+        document.getElementById('solicitudesPanelOv').classList.remove('open');
+    }
+
+    async function cargarSolicitudesPendientes() {
+        const cont = document.getElementById('solicitudesListado');
+        cont.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px;">Cargando...</div>';
+        try {
+            const h = authHeaders();
+            const res = await fetch('/api/solicitudes-stock/pendientes', {headers: h});
+            const data = await res.json();
+            const lista = data.datos ?? data;
+            if (!lista.length) {
+                cont.innerHTML = '<div style="text-align:center;color:#aaa;padding:30px;"><i class="bi bi-inbox" style="font-size:28px;display:block;margin-bottom:8px;"></i>Sin solicitudes pendientes</div>';
+                document.getElementById('badgeSolicitudes').style.display = 'none';
+                return;
+            }
+            document.getElementById('badgeSolicitudes').textContent = lista.length;
+            document.getElementById('badgeSolicitudes').style.display = '';
+            cont.innerHTML = lista.map(s => `
+                <div style="border:1.5px solid #D0EDFC;border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+                        <div>
+                            <div style="font-weight:700;color:#12274B;font-size:14px;">${s.nombreProducto ?? s.producto}</div>
+                            <div style="font-size:12px;color:#888;margin-top:2px;">
+                                De: <strong>${s.sucursalSolicitante}</strong> &nbsp;·&nbsp;
+                                Cantidad: <strong>${s.cantidad}</strong> und.
+                                ${s.observacion ? '<br><span style="color:#555;font-style:italic;">"' + s.observacion + '"</span>' : ''}
+                            </div>
+                            <div style="font-size:11px;color:#aaa;margin-top:4px;">${new Date(s.fechaSolicitud).toLocaleString('es-EC')}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;flex-shrink:0;">
+                            <button class="btn btn-sm" onclick="responderSolicitud(${s.idSolicitud},'aceptar',this)"
+                                style="background:#d1fae5;color:#065f46;"><i class="bi bi-check-lg"></i> Aceptar</button>
+                            <button class="btn btn-sm btn-danger" onclick="responderSolicitud(${s.idSolicitud},'rechazar',this)">
+                                <i class="bi bi-x-lg"></i> Rechazar</button>
+                        </div>
+                    </div>
+                </div>`).join('');
+        } catch(e) {
+            cont.innerHTML = '<div style="color:#e74c3c;padding:20px;text-align:center;">Error al cargar solicitudes.</div>';
+        }
+    }
+
+    async function responderSolicitud(id, accion, btn) {
+        btn.disabled = true;
+        try {
+            const h = authHeaders();
+            const res = await fetch(`/api/solicitudes-stock/${id}/${accion}`, {method:'PATCH', headers:h});
+            if (res.ok) {
+                await cargarSolicitudesPendientes();
+                await cargarBadgeSolicitudes();
+            } else {
+                const d = await res.json();
+                mostrarAlerta(d.mensaje ?? 'Error al procesar la solicitud', 'error');
+                btn.disabled = false;
+            }
+        } catch(e) {
+            mostrarAlerta('Error de conexión', 'error');
+            btn.disabled = false;
+        }
+    }
+
     async function inicializar() {
         await Promise.all([cargarCategorias(), cargarSucursales()]);
         cargarDatos();
@@ -621,5 +742,19 @@
 
     inicializar();
 </script>
+
+<!-- Modal: Solicitudes Pendientes (BODEGUERO) -->
+<div class="cm-ov" id="solicitudesPanelOv" style="align-items:flex-start;padding-top:60px;">
+    <div style="background:#fff;border-radius:12px;padding:28px 32px;width:96%;max-width:640px;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+            <h3 style="font-size:15px;color:#12274B;font-weight:700;margin:0;"><i class="bi bi-send" style="color:#1468B1;margin-right:6px;"></i> Solicitudes de Stock Pendientes</h3>
+            <button onclick="cerrarSolicitudesPanel()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;">&times;</button>
+        </div>
+        <div id="solicitudesListado" style="max-height:420px;overflow-y:auto;">
+            <div style="text-align:center;color:#aaa;padding:30px;">Cargando...</div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

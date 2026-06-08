@@ -197,10 +197,15 @@
         const menus = { ADMIN: menuAdmin, CAJERO: menuVendedor, BODEGUERO: menuBodeguero };
         if (document.getElementById('navMenu'))
             document.getElementById('navMenu').innerHTML = menus[rol] || menuVendedor;
-        if (document.getElementById('sidebarUser'))
-            document.getElementById('sidebarUser').textContent = username + ' · ' + (rolDisplay[rol] || rol);
+        const _layoutSucursal = localStorage.getItem('sucursal') || '';
+        if (document.getElementById('sidebarUser')) {
+            const su = document.getElementById('sidebarUser');
+            su.innerHTML = username + ' &middot; ' + (rolDisplay[rol]||rol) +
+                (_layoutSucursal && rol !== 'ADMIN' ? '<br><span style="color:#90afd4;font-size:11px">' + _layoutSucursal + '</span>' : '');
+        }
         if (document.getElementById('userDisplay'))
-            document.getElementById('userDisplay').textContent = username + ' — ' + (rolDisplay[rol] || rol);
+            document.getElementById('userDisplay').textContent = username + ' — ' + (rolDisplay[rol]||rol) +
+                (_layoutSucursal && rol !== 'ADMIN' ? ' · ' + _layoutSucursal : '');
 
         function logout() {
             localStorage.clear();

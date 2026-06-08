@@ -67,10 +67,16 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
-                        // Stock: ADMIN y BODEGUERO
+                        // Stock: lectura permitida a CAJERO
+                        .requestMatchers(HttpMethod.GET, "/api/stock/**").hasAnyRole("ADMIN", "BODEGUERO", "CAJERO")
+                        // Stock: escritura solo ADMIN y BODEGUERO
                         .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "BODEGUERO")
-                        // Facturas (todas las operaciones): ADMIN y CAJERO
+                        // PDF de factura: público
+                        .requestMatchers(HttpMethod.GET, "/api/facturas/*/pdf").permitAll()
+                        // Facturas: ADMIN y CAJERO
                         .requestMatchers("/api/facturas/**").hasAnyRole("ADMIN", "CAJERO")
+                        // Solicitudes de stock inter-sucursal
+                        .requestMatchers("/api/solicitudes-stock/**").hasAnyRole("ADMIN", "CAJERO", "BODEGUERO")
                         // Todo lo demas requiere autenticacion
                         .anyRequest().authenticated()
                 )

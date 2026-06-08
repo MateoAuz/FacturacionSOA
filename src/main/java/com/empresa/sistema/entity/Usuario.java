@@ -33,7 +33,7 @@ public class Usuario {
     private Rol rol;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_sucursal", nullable = false)
+    @JoinColumn(name = "id_sucursal", nullable = true)
     private Sucursal sucursal;
 
     @Column(name = "activo", nullable = false)

@@ -5,7 +5,10 @@ import com.empresa.sistema.dto.response.DetalleVentaResponseDTO;
 import com.empresa.sistema.dto.response.FacturaResponseDTO;
 import com.empresa.sistema.dto.response.PageResponseDTO;
 import com.empresa.sistema.entity.*;
+import com.empresa.sistema.dto.FacturaPagoDTO;
+import com.empresa.sistema.entity.FacturaPago;
 import com.empresa.sistema.repository.*;
+import java.util.Collections;
 import com.empresa.sistema.service.EmailService;
 import com.empresa.sistema.service.FacturaService;
 import com.itextpdf.text.*;
@@ -41,6 +44,7 @@ public class FacturaServiceImpl implements FacturaService {
     private final ConfiguracionIvaRepository     ivaRepository;
     private final ConfiguracionEmpresaRepository empresaRepository;
     private final EmailService                   emailService;
+    private final FacturaPagoRepository         facturaPagoRepository;
 
     // ────────────────────────────────────────────────────────────
     // Crear factura
@@ -135,6 +139,10 @@ public class FacturaServiceImpl implements FacturaService {
         Factura saved = facturaRepository.save(factura);
         detalles.forEach(d -> d.setFactura(saved));
         detalleRepository.saveAll(detalles);
+
+        // Guardar formas de pago
+        List<FacturaPago> pagosEntidad = buildPagos(dto, saved);
+        facturaPagoRepository.saveAll(pagosEntidad);
 
         return toDTO(saved, true);
     }
@@ -438,7 +446,15 @@ public class FacturaServiceImpl implements FacturaService {
                     "Sucursal: " + pdfSucNombre + " – " + pdfSucCiudad,
                     fValue, GRAY_BG, BORDER_GRAY));
             strip.addCell(mkStripCell("Fecha: " + f.getFechaFactura().format(dtfs), fValue, GRAY_BG, BORDER_GRAY));
-            strip.addCell(mkStripCell("Pago: " + f.getMetodoPago().name(), fValue, GRAY_BG, BORDER_GRAY));
+            // Formas de pago para el strip — cargar desde factura_pago
+            List<FacturaPago> pdfPagos = facturaPagoRepository
+                    .findByFactura_IdFacturaOrderByIdPagoAsc(f.getIdFactura());
+            String pagoResumen = pdfPagos.isEmpty()
+                    ? f.getMetodoPago().name()
+                    : pdfPagos.stream()
+                              .map(p -> p.getMetodoPago().name() + " $" + p.getMonto().toPlainString())
+                              .collect(java.util.stream.Collectors.joining(" / "));
+            strip.addCell(mkStripCell("Pago: " + pagoResumen, fValue, GRAY_BG, BORDER_GRAY));
             doc.add(strip);
 
             // ══════════════════════════════════════════════════════════
@@ -491,7 +507,17 @@ public class FacturaServiceImpl implements FacturaService {
             Paragraph pInfoTit = new Paragraph("INFORMACIÓN ADICIONAL", fSecHead);
             pInfoTit.setSpacingAfter(5f);
             infoCell.addElement(pInfoTit);
-            infoCell.addElement(mkLine("Método de pago: ", f.getMetodoPago().name(), fLabel, fValue));
+            // Formas de pago detalladas en sección info
+            if (pdfPagos.isEmpty()) {
+                infoCell.addElement(mkLine("Método de pago: ", f.getMetodoPago().name(), fLabel, fValue));
+            } else {
+                for (FacturaPago fp : pdfPagos) {
+                    infoCell.addElement(mkLine(
+                        "Pago " + fp.getMetodoPago().name() + ": ",
+                        "$" + fp.getMonto().toPlainString(),
+                        fLabel, fValue));
+                }
+            }
             if (f.getObservacion() != null && !f.getObservacion().isBlank())
                 infoCell.addElement(mkLine("Observaciones: ", f.getObservacion(), fLabel, fValue));
             infoCell.addElement(mkLine("Estado: ", f.getEstado().name(), fLabel, fValue));
@@ -636,6 +662,26 @@ public class FacturaServiceImpl implements FacturaService {
                 ? d.getSnapProductoCodigo() : d.getProducto().getCodigo();
     }
 
+    /** Convierte la lista de pagos del DTO en entidades FacturaPago. */
+    private List<FacturaPago> buildPagos(FacturaRequestDTO dto, Factura factura) {
+        if (dto.getPagos() != null && !dto.getPagos().isEmpty()) {
+            return dto.getPagos().stream()
+                    .map(p -> FacturaPago.builder()
+                            .factura(factura)
+                            .metodoPago(Factura.MetodoPago.valueOf(p.getMetodo()))
+                            .monto(p.getMonto())
+                            .build())
+                    .collect(Collectors.toList());
+        }
+        // Compatibilidad: si no se envía lista, usar el campo metodoPago legacy
+        return Collections.singletonList(
+                FacturaPago.builder()
+                        .factura(factura)
+                        .metodoPago(factura.getMetodoPago())
+                        .monto(factura.getTotal())
+                        .build());
+    }
+
     private FacturaResponseDTO toDTO(Factura f, boolean incluirDetalles) {
         List<DetalleVentaResponseDTO> detalles = null;
         if (incluirDetalles) {
@@ -649,6 +695,14 @@ public class FacturaServiceImpl implements FacturaService {
                             .subtotalLinea(d.getSubtotalLinea()).build())
                     .collect(Collectors.toList());
         }
+        // Cargar formas de pago
+        List<FacturaPagoDTO> pagos = facturaPagoRepository
+                .findByFactura_IdFacturaOrderByIdPagoAsc(f.getIdFactura()).stream()
+                .map(p -> FacturaPagoDTO.builder()
+                        .metodo(p.getMetodoPago().name())
+                        .monto(p.getMonto())
+                        .build())
+                .collect(Collectors.toList());
         return FacturaResponseDTO.builder()
                 .idFactura(f.getIdFactura())
                 .numeroSecuencial(f.getNumeroSecuencial())
@@ -669,6 +723,7 @@ public class FacturaServiceImpl implements FacturaService {
                 .pdfPath(f.getPdfPath())
                 .claveAcceso(f.getClaveAcceso())
                 .detalles(detalles)
+                .pagos(pagos)
                 .build();
     }
 }

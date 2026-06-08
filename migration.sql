@@ -226,3 +226,32 @@ SET
 WHERE df.snap_producto_nombre IS NULL;
 
 SELECT 'Migración snapshot completada.' AS resultado;
+
+
+-- ============================================================
+-- PASO: Tabla solicitud_stock (solicitudes inter-sucursal)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS solicitud_stock (
+    id_solicitud             INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    id_producto              INT UNSIGNED  NOT NULL,
+    id_sucursal_solicitante  SMALLINT UNSIGNED NOT NULL,
+    id_sucursal_proveedora   SMALLINT UNSIGNED NOT NULL,
+    cantidad                 INT           NOT NULL,
+    estado                   ENUM('PENDIENTE','ACEPTADA','RECHAZADA') NOT NULL DEFAULT 'PENDIENTE',
+    id_usuario_solicitante   INT UNSIGNED  NOT NULL,
+    observacion              VARCHAR(255)  NULL,
+    fecha_solicitud          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_respuesta          DATETIME      NULL,
+    id_usuario_respuesta     INT UNSIGNED  NULL,
+    CONSTRAINT pk_solicitud_stock              PRIMARY KEY (id_solicitud),
+    CONSTRAINT fk_sol_producto                 FOREIGN KEY (id_producto)             REFERENCES producto  (id_producto),
+    CONSTRAINT fk_sol_sucursal_solicitante     FOREIGN KEY (id_sucursal_solicitante) REFERENCES sucursal  (id_sucursal),
+    CONSTRAINT fk_sol_sucursal_proveedora      FOREIGN KEY (id_sucursal_proveedora)  REFERENCES sucursal  (id_sucursal),
+    CONSTRAINT fk_sol_usuario_solicitante      FOREIGN KEY (id_usuario_solicitante)  REFERENCES usuario   (id_usuario),
+    CONSTRAINT fk_sol_usuario_respuesta        FOREIGN KEY (id_usuario_respuesta)    REFERENCES usuario   (id_usuario)
+) ENGINE=InnoDB;
+
+CREATE INDEX IF NOT EXISTS idx_solicitud_estado     ON solicitud_stock (estado);
+CREATE INDEX IF NOT EXISTS idx_solicitud_proveedora ON solicitud_stock (id_sucursal_proveedora);
+
+SELECT 'Tabla solicitud_stock lista.' AS resultado;

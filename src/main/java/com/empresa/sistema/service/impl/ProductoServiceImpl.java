@@ -97,7 +97,7 @@ public class ProductoServiceImpl implements ProductoService {
         if (idSucursal != null) {
             resultado = productoRepository.buscarPaginadoConStock(
                     (search != null && !search.isBlank()) ? search : null,
-                    idSucursal, pageable);
+                    idCategoria, pageable);
         } else {
             resultado = productoRepository.buscarPaginado(
                     (search != null && !search.isBlank()) ? search : null,

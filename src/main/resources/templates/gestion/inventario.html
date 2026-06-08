@@ -34,10 +34,23 @@
 
     <div class="card-box">
         <div class="card-box-header">
-            <h2>Stock por Sucursal</h2>
-            <button class="btn btn-primary" onclick="abrirModalNuevo()">+ Ajustar Stock</button>
+            <h2 id="tabTitulo">Stock por Sucursal</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn" id="tabBtnSolicitudes" onclick="mostrarTabSolicitudes()"
+                    style="display:none;background:#e8f4fd;color:#1468B1;font-weight:700;">
+                    <i class="bi bi-send"></i> Solicitudes
+                    <span id="badgePendientes" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 7px;font-size:11px;margin-left:4px;"></span>
+                </button>
+                <button class="btn" id="tabBtnStock" onclick="mostrarTabStock()"
+                    style="display:none;background:#f0f4f8;color:#333;">
+                    <i class="bi bi-box-seam-fill"></i> Stock
+                </button>
+                <button class="btn btn-primary" id="btnAjustarStock" onclick="abrirModalNuevo()">+ Ajustar Stock</button>
+            </div>
         </div>
 
+        <!-- ── Tab Stock ── -->
+        <div id="tabStock">
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
             <input type="text" id="buscador" placeholder="Buscar por producto o código..."
                    oninput="resetPagina()"
@@ -74,6 +87,19 @@
         <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
             <span id="infoPagina" style="font-size:13px;color:#888"></span>
             <div style="display:flex;gap:6px;" id="controlesPagina"></div>
+        </div>
+        </div><!-- /tabStock -->
+
+        <!-- ── Tab Solicitudes (BODEGUERO) ── -->
+        <div id="tabSolicitudes" style="display:none;">
+            <div style="padding:20px 24px;">
+                <div id="solicitudesContenido">
+                    <div style="text-align:center;color:#aaa;padding:40px;font-size:14px;">
+                        <i class="bi bi-send" style="font-size:32px;color:#D0EDFC;display:block;margin-bottom:10px;"></i>
+                        Cargando solicitudes...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -275,8 +301,139 @@
         finally { btn.disabled = false; btn.textContent = 'Guardar Stock'; }
     }
 
+    /* ─── Tabs ─── */
+    function mostrarTabStock() {
+        document.getElementById('tabStock').style.display = '';
+        document.getElementById('tabSolicitudes').style.display = 'none';
+        document.getElementById('tabTitulo').textContent = 'Stock por Sucursal';
+        document.getElementById('tabBtnStock').style.cssText += ';background:#f0f4f8;color:#333;';
+        document.getElementById('tabBtnSolicitudes').style.cssText += ';background:#e8f4fd;color:#1468B1;';
+        document.getElementById('btnAjustarStock').style.display = '';
+    }
+
+    function mostrarTabSolicitudes() {
+        document.getElementById('tabStock').style.display = 'none';
+        document.getElementById('tabSolicitudes').style.display = '';
+        document.getElementById('tabTitulo').textContent = 'Solicitudes de Stock Pendientes';
+        document.getElementById('tabBtnSolicitudes').style.cssText += ';background:#1468B1;color:white;';
+        document.getElementById('tabBtnStock').style.cssText += ';background:#f0f4f8;color:#333;';
+        document.getElementById('btnAjustarStock').style.display = 'none';
+        cargarSolicitudes();
+    }
+
+    /* ─── Solicitudes ─── */
+    async function cargarSolicitudes() {
+        const h = authHeaders();
+        const cont = document.getElementById('solicitudesContenido');
+        cont.innerHTML = '<div style="text-align:center;color:#aaa;padding:40px;">Cargando...</div>';
+        try {
+            const res = await fetch('/api/solicitudes-stock/pendientes', {headers: h});
+            const data = await res.json();
+            const lista = data.datos ?? data;
+            if (!lista.length) {
+                cont.innerHTML = `<div style="text-align:center;color:#aaa;padding:48px;">
+                    <i class="bi bi-check-circle-fill" style="font-size:36px;color:#d1fae5;display:block;margin-bottom:10px;"></i>
+                    <strong style="color:#12274B;">Sin solicitudes pendientes</strong><br>
+                    <span style="font-size:13px;">Cuando un vendedor necesite stock, aparecerá aquí.</span>
+                </div>`;
+                document.getElementById('badgePendientes').style.display = 'none';
+                return;
+            }
+            document.getElementById('badgePendientes').textContent = lista.length;
+            document.getElementById('badgePendientes').style.display = '';
+            cont.innerHTML = lista.map(s => `
+                <div style="background:#f8fafc;border:1.5px solid #D0EDFC;border-radius:10px;padding:18px 20px;margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#12274B;margin-bottom:4px;">
+                                ${s.producto}
+                                <code style="background:#e8f4fd;color:#1468B1;padding:1px 6px;border-radius:4px;font-size:11px;margin-left:6px;">${s.codigoProducto}</code>
+                            </div>
+                            <div style="font-size:13px;color:#555;">
+                                <i class="bi bi-geo-alt-fill" style="color:#4C97D2;"></i>
+                                Solicita <strong>${s.sucursalSolicitante}</strong> &mdash; vendedor: <strong>${s.usuarioSolicitante}</strong>
+                            </div>
+                            ${s.observacion ? '<div style="font-size:12px;color:#888;margin-top:4px;"><i class="bi bi-chat-left-text"></i> ' + s.observacion + '</div>' : ''}
+                            <div style="font-size:11px;color:#aaa;margin-top:6px;">${new Date(s.fechaSolicitud).toLocaleString('es-EC')}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:28px;font-weight:800;color:#1468B1;margin-bottom:8px;">${s.cantidad} <span style="font-size:14px;font-weight:400;color:#888;">unidades</span></div>
+                            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                                <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;font-weight:700;"
+                                    onclick="responderSolicitud(${s.idSolicitud},'rechazar',this)">
+                                    <i class="bi bi-x-circle-fill"></i> Rechazar
+                                </button>
+                                <button class="btn btn-primary btn-sm"
+                                    onclick="responderSolicitud(${s.idSolicitud},'aceptar',this)">
+                                    <i class="bi bi-check-circle-fill"></i> Aceptar y Transferir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            cont.innerHTML = '<div style="color:#e74c3c;padding:20px;text-align:center;">Error al cargar solicitudes.</div>';
+        }
+    }
+
+    async function responderSolicitud(id, accion, btn) {
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = accion === 'aceptar' ? 'Procesando...' : 'Rechazando...';
+        try {
+            const h = authHeaders();
+            const res = await fetch('/api/solicitudes-stock/' + id + '/' + accion, {method:'PATCH', headers:h});
+            const data = await res.json();
+            if (res.ok) {
+                mostrarAlerta(accion === 'aceptar'
+                    ? 'Solicitud aceptada. El stock fue transferido.'
+                    : 'Solicitud rechazada.', accion === 'aceptar' ? 'success' : 'info');
+                actualizarBadgePendientes();
+                cargarSolicitudes();
+            } else {
+                mostrarAlerta(data.mensaje ?? 'Error al procesar', 'error');
+                btn.disabled = false; btn.innerHTML = orig;
+            }
+        } catch(e) {
+            mostrarAlerta('Error de conexión', 'error');
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    function mostrarAlerta(msg, tipo) {
+        tipo = tipo || 'info';
+        const colors = {success:'#059669', error:'#dc2626', info:'#1468B1', warning:'#d97706'};
+        const icons  = {success:'check-circle-fill', error:'x-circle-fill', info:'info-circle-fill', warning:'exclamation-triangle-fill'};
+        const div = document.createElement('div');
+        div.style.cssText = 'position:fixed;top:20px;right:20px;background:white;border-left:4px solid ' + (colors[tipo]||colors.info) + ';' +
+            'border-radius:8px;padding:14px 18px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;' +
+            'display:flex;align-items:center;gap:10px;font-size:14px;color:#12274B;max-width:340px;';
+        div.innerHTML = '<i class="bi bi-' + (icons[tipo]||icons.info) + '" style="color:' + (colors[tipo]||colors.info) + ';font-size:18px;flex-shrink:0;"></i>' + msg;
+        document.body.appendChild(div);
+        setTimeout(function() { div.remove(); }, 4000);
+    }
+
+    async function actualizarBadgePendientes() {
+        if (rol !== 'BODEGUERO') return;
+        try {
+            const h = authHeaders();
+            const res = await fetch('/api/solicitudes-stock/pendientes/count', {headers:h});
+            const data = await res.json();
+            const count = data.datos ?? 0;
+            const badge = document.getElementById('badgePendientes');
+            if (badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
+        } catch(e) {}
+    }
+
     cargarFiltros();
     cargarDatos();
+
+    if (rol === 'BODEGUERO') {
+        document.getElementById('tabBtnSolicitudes').style.display = '';
+        document.getElementById('tabBtnStock').style.display = '';
+        actualizarBadgePendientes();
+    }
 </script>
 </body>
 </html>

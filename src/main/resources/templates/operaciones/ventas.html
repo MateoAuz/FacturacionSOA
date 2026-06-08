@@ -18,7 +18,7 @@
 .cm-btns  { display:flex;gap:10px;justify-content:center; }
 
 /* ── Modal busqueda (clientes / productos) ── */
-.search-modal { max-width:720px!important;text-align:left;padding:24px 28px; }
+.search-modal { max-width:960px!important;width:96vw;text-align:left;padding:24px 28px; }
 .tbl-container { height:400px;overflow-y:auto;border:1px solid #f0f4f8;border-radius:6px;margin-top:10px; }
 .s-tbl { width:100%;border-collapse:collapse;font-size:13px; }
 .s-tbl th { background:#f8fafc;padding:8px 12px;font-size:11px;text-transform:uppercase;color:#12274B;font-weight:700;border-bottom:2px solid #e2e8f0; }
@@ -106,13 +106,21 @@
             <h3 style="margin:0;font-size:16px;color:#12274B;"><i class="bi bi-person-lines-fill" style="color:#1468B1;margin-right:6px;"></i>Buscar Cliente</h3>
             <button onclick="cerrarClienteModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:4px;">
-            <div style="position:relative;flex:1;">
+        <div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;">
+            <div style="position:relative;flex:2;">
                 <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4C97D2;font-size:13px;pointer-events:none;"></i>
                 <input type="text" id="clBuscador" placeholder="Nombre, apellido o cédula..."
                     style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
                     oninput="buscarClientesPage(0)" onkeydown="if(event.key==='Enter')buscarClientesPage(0)"/>
             </div>
+            <select id="clFiltroTipo" onchange="buscarClientesPage(0)"
+                style="flex:1;min-width:150px;padding:9px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;color:#12274B;outline:none;background:white;">
+                <option value="">Todos los tipos</option>
+                <option value="CEDULA">Cédula</option>
+                <option value="RUC">RUC</option>
+                <option value="PASAPORTE">Pasaporte</option>
+                <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+            </select>
             <button class="btn" onclick="abrirNuevoClienteModal()" style="background:#d1fae5;color:#065f46;font-weight:700;white-space:nowrap"><i class="bi bi-person-plus-fill"></i> Nuevo</button>
         </div>
         <div class="tbl-container">
@@ -215,13 +223,17 @@
             <h3 style="margin:0;font-size:16px;color:#12274B;"><i class="bi bi-box-seam-fill" style="color:#1468B1;margin-right:6px;"></i>Buscar Producto</h3>
             <button onclick="cerrarProductoModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:4px;">
-            <div style="position:relative;flex:1;">
+        <div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;">
+            <div style="position:relative;flex:2;">
                 <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4C97D2;font-size:13px;pointer-events:none;"></i>
                 <input type="text" id="proBuscador" placeholder="Nombre o código del producto..."
                     style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
                     oninput="buscarProductosPage(0)" onkeydown="if(event.key==='Enter')buscarProductosPage(0)"/>
             </div>
+            <select id="proFiltroCategoria" onchange="buscarProductosPage(0)"
+                style="flex:1;min-width:140px;padding:9px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;color:#12274B;outline:none;background:white;">
+                <option value="">Todas las categorías</option>
+            </select>
         </div>
         <div class="tbl-container">
             <table class="s-tbl">
@@ -230,6 +242,75 @@
             </table>
         </div>
         <div class="pag-bar" id="proPaginacion"></div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ MODAL: SOLICITUD STOCK INTER-SUCURSAL ═ -->
+<div class="cm-overlay" id="solicitudStockModal" style="z-index:400;">
+    <div class="cm-box" style="max-width:520px;width:100%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <h3 style="margin:0;font-size:16px;color:#12274B;">
+                <i class="bi bi-send-fill" style="color:#1468B1;margin-right:6px;"></i>Solicitar Stock
+            </h3>
+            <button onclick="cerrarSolicitudModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button>
+        </div>
+        <div id="solicitudProductoInfo" style="background:#f0f7ff;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#12274B;font-weight:600;"></div>
+
+        <p style="font-size:12px;color:#888;margin:0 0 10px;">Stock disponible en otras sucursales:</p>
+        <div id="solicitudStockTabla" style="margin-bottom:16px;max-height:160px;overflow-y:auto;border:1.5px solid #D0EDFC;border-radius:8px;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:8px 12px;font-size:11px;text-align:left;color:#12274B;text-transform:uppercase;letter-spacing:.5px;">Sucursal</th>
+                        <th style="padding:8px 12px;font-size:11px;text-align:left;color:#12274B;text-transform:uppercase;letter-spacing:.5px;">Stock</th>
+                    </tr>
+                </thead>
+                <tbody id="solicitudStockRows">
+                    <tr><td colspan="2" style="padding:12px;text-align:center;color:#aaa;font-size:13px;">Cargando...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>Solicitar de sucursal</label>
+            <select id="solicitudSucursalSel"
+                style="width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;">
+                <option value="">— Selecciona una sucursal —</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+            <label>Cantidad a solicitar</label>
+            <input type="number" id="solicitudCantidad" min="1" value="1"
+                oninput="validarCantidadSolicitud(this)"
+                style="width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;">
+            <span id="solicitudCantidadError" style="font-size:11px;color:#e74c3c;display:none;margin-top:4px;display:block;"></span>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+            <label>Observación (opcional)</label>
+            <input type="text" id="solicitudObservacion" placeholder="Ej: Urgente para pedido de cliente"
+                style="width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;">
+        </div>
+        <!-- Feedback inline (éxito / error) -->
+        <div id="solicitudFeedback" style="display:none;padding:10px 14px;border-radius:7px;font-size:13px;margin-bottom:12px;"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button class="btn" onclick="cerrarSolicitudModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" id="btnEnviarSolicitud" onclick="enviarSolicitudStock()">
+                <i class="bi bi-send-fill"></i> Enviar Solicitud
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════ MODAL: CONFIRMAR LIMPIAR ════════════ -->
+<div class="cm-overlay" id="confirmLimpiarModal" style="z-index:300;">
+    <div class="cm-box">
+        <div class="cm-icon"><i class="bi bi-arrow-counterclockwise" style="color:#e67e22;font-size:36px"></i></div>
+        <div class="cm-title">¿Limpiar formulario?</div>
+        <div class="cm-msg">Se borrarán el cliente, productos y métodos de pago ingresados. Esta acción no se puede deshacer.</div>
+        <div class="cm-btns">
+            <button class="btn" onclick="document.getElementById('confirmLimpiarModal').classList.remove('open')" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" onclick="document.getElementById('confirmLimpiarModal').classList.remove('open');nuevaFactura()">Sí, limpiar</button>
+        </div>
     </div>
 </div>
 
@@ -393,10 +474,16 @@
                 </div>
             </div>
 
-            <button class="btn btn-primary" id="btnGuardar" onclick="solicitarGuardar()"
-                    style="padding:16px;font-size:15px;width:100%;border-radius:10px;opacity:.4;cursor:not-allowed">
-                <i class="bi bi-floppy2-fill"></i> Guardar Factura
-            </button>
+            <div style="display:flex;gap:10px;">
+                <button class="btn" id="btnLimpiar" onclick="solicitarLimpiar()"
+                        style="padding:16px;font-size:14px;flex:0 0 auto;border-radius:10px;background:#f0f4f8;color:#555;border:1.5px solid #d0d8e4;">
+                    <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+                </button>
+                <button class="btn btn-primary" id="btnGuardar" onclick="solicitarGuardar()"
+                        style="padding:16px;font-size:15px;flex:1;border-radius:10px;opacity:.4;cursor:not-allowed">
+                    <i class="bi bi-floppy2-fill"></i> Guardar Factura
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -568,8 +655,10 @@ async function buscarClientesPage(page) {
     const q = document.getElementById('clBuscador').value.trim();
     const h = authHeaders();
     document.getElementById('clTabla').innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:16px">Cargando...</td></tr>';
+    const tipo = document.getElementById('clFiltroTipo')?.value;
     try {
-        const url = `/api/clientes/paginado?page=${page}&size=${CL_SIZE}${q ? '&search='+encodeURIComponent(q) : ''}`;
+        let url = `/api/clientes/paginado?page=${page}&size=${CL_SIZE}${q ? '&search='+encodeURIComponent(q) : ''}`;
+        if (tipo) url += `&tipo=${tipo}`;
         const res  = await fetch(url, {headers:h});
         const data = await res.json();
         const pd   = data.datos ?? data;
@@ -785,9 +874,11 @@ async function buscarProductosPage(page) {
     const h = authHeaders();
     document.getElementById('proTabla').innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Cargando...</td></tr>';
     try {
+        const idCategoria = document.getElementById('proFiltroCategoria')?.value;
         let url = `/api/productos/paginado?page=${page}&size=${PRO_SIZE}`;
-        if (q)          url += `&search=${encodeURIComponent(q)}`;
-        if (idSucursal) url += `&idSucursal=${idSucursal}`;
+        if (q)           url += `&search=${encodeURIComponent(q)}`;
+        if (idSucursal)  url += `&idSucursal=${idSucursal}`;
+        if (idCategoria) url += `&idCategoria=${idCategoria}`;
         const res  = await fetch(url, {headers:h});
         const data = await res.json();
         const pd   = data.datos ?? data;
@@ -797,21 +888,30 @@ async function buscarProductosPage(page) {
         } else {
             document.getElementById('proTabla').innerHTML = lista.map(p => {
                 const stk = p.stockDisponible;
+                const sinStock = stk != null && stk <= 0;
                 const stkBadge = stk != null
-                    ? (stk <= 5
-                        ? `<span class="sk-bajo">${stk} und.</span>`
-                        : `<span class="sk-ok">${stk} und.</span>`)
+                    ? (sinStock
+                        ? `<span class="sk-sin">Sin stock</span>`
+                        : stk <= 5
+                            ? `<span class="sk-bajo">${stk} und.</span>`
+                            : `<span class="sk-ok">${stk} und.</span>`)
                     : '—';
+                const accion = sinStock
+                    ? `<button class="btn btn-sm" style="background:#e8f4fd;color:#1468B1;border:1.5px solid #D0EDFC;"
+                          onclick="abrirSolicitudStockModal(${p.idProducto},'${esc(p.nombre)}')">
+                          <i class="bi bi-send"></i> Solicitar
+                       </button>`
+                    : `<button class="btn btn-primary btn-sm"
+                          onclick="seleccionarProducto(${p.idProducto},'${esc(p.nombre)}',${p.precioVenta},'${p.codigo}')">
+                          Seleccionar
+                       </button>`;
                 return `<tr>
                     <td style="font-size:11px;color:#888">${p.codigo}</td>
                     <td><strong>${p.nombre}</strong></td>
                     <td style="font-size:12px;color:#888">${p.categoriaNombre??'—'}</td>
                     <td style="font-weight:700;color:#1468B1">$${parseFloat(p.precioVenta).toFixed(2)}</td>
                     <td>${stkBadge}</td>
-                    <td><button class="btn btn-primary btn-sm"
-                        onclick="seleccionarProducto(${p.idProducto},'${esc(p.nombre)}',${p.precioVenta},'${p.codigo}')">
-                        Sel.
-                    </button></td>
+                    <td>${accion}</td>
                 </tr>`;
             }).join('');
         }
@@ -861,7 +961,23 @@ async function inicializar() {
 
     const h = authHeaders();
     const safeFetch = url => fetch(url,{headers:h}).then(r=>r.ok?r.json():{datos:null}).catch(()=>({datos:null}));
-    const [sucs, ivaRes] = await Promise.all([safeFetch('/api/sucursales'), safeFetch('/api/configuracion-iva/activa')]);
+    const [sucs, ivaRes, catRes] = await Promise.all([
+        safeFetch('/api/sucursales'),
+        safeFetch('/api/configuracion-iva/activa'),
+        safeFetch('/api/categorias')
+    ]);
+
+    // Poblar filtro de categorías en el modal de productos
+    const categorias = catRes.datos ?? catRes ?? [];
+    if (Array.isArray(categorias) && categorias.length) {
+        const sel = document.getElementById('proFiltroCategoria');
+        categorias.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.idCategoria;
+            opt.textContent = c.nombre;
+            sel.appendChild(opt);
+        });
+    }
 
     const sucursales = sucs.datos ?? sucs ?? [];
     if (Array.isArray(sucursales) && sucursales.length) {
@@ -939,7 +1055,15 @@ async function mostrarStockProducto() {
     const infoEl = document.getElementById('stockInfo');
     infoEl.innerHTML = `<span style="color:#888">Consultando stock...</span>`;
     const stock = await fetchStockFresco(idProducto, idSucursal);
-    if      (stock <= 0) infoEl.innerHTML = `<span class="sk-sin">SIN STOCK</span>`;
+    if (stock <= 0) {
+        const nombre = document.getElementById('selProductoNombre').value;
+        infoEl.innerHTML = `<span class="sk-sin">SIN STOCK</span>
+            <button onclick="abrirSolicitudStockModal(${idProducto}, '${esc(nombre)}')"
+                style="margin-left:10px;background:#e8f4fd;color:#1468B1;border:1.5px solid #D0EDFC;
+                       padding:3px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+                <i class="bi bi-send"></i> Solicitar a otra sucursal
+            </button>`;
+    }
     else if (stock <= 5) infoEl.innerHTML = `<span class="sk-bajo">Stock bajo: ${stock} und.</span>`;
     else                 infoEl.innerHTML = `<span class="sk-ok">Disponible: ${stock} und.</span>`;
 }
@@ -1113,7 +1237,8 @@ async function ejecutarGuardar() {
         idSucursal : parseInt(document.getElementById('ventaSucursal').value),
         metodoPago : metodoPrincipal,
         observacion: document.getElementById('ventaObservacion').value || null,
-        detalles   : detalles.map(d=>({idProducto:d.idProducto, cantidad:d.cantidad}))
+        detalles   : detalles.map(d=>({idProducto:d.idProducto, cantidad:d.cantidad})),
+        pagos      : pagos.map(p=>({metodo: p.metodo, monto: p.monto}))
     };
 
     const btn = document.getElementById('btnGuardar');
@@ -1137,6 +1262,18 @@ async function ejecutarGuardar() {
     } catch(e) {
         mostrarAlert('Error de conexión','No se pudo conectar con el servidor','error');
         hayDatos = true; btn.disabled = false; btn.textContent = 'Guardar Factura';
+    }
+}
+
+function solicitarLimpiar() {
+    // Si hay algo en el formulario, pedir confirmación
+    const tieneCliente  = !!clienteSelId;
+    const tieneProductos = detalles.length > 0;
+    const tienePagos    = pagos.length > 0;
+    if (tieneCliente || tieneProductos || tienePagos) {
+        document.getElementById('confirmLimpiarModal').classList.add('open');
+    } else {
+        nuevaFactura();
     }
 }
 
@@ -1177,6 +1314,163 @@ function limitarDecimalesPago(el) {
 function esc(s) {
     return String(s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 }
+
+/* ════════════════════════════════════════════
+   SOLICITUD STOCK INTER-SUCURSAL
+════════════════════════════════════════════ */
+let _solicitudIdProducto = null;
+
+async function abrirSolicitudStockModal(idProducto, nombre) {
+    _solicitudIdProducto = idProducto;
+    document.getElementById('solicitudProductoInfo').textContent = nombre;
+    document.getElementById('solicitudCantidad').value = 1;
+    document.getElementById('solicitudCantidad').style.borderColor = '#D0EDFC';
+    document.getElementById('solicitudCantidad').removeAttribute('max');
+    document.getElementById('solicitudCantidadError').style.display = 'none';
+    document.getElementById('solicitudObservacion').value = '';
+    document.getElementById('solicitudFeedback').style.display = 'none';
+    document.getElementById('solicitudSucursalSel').innerHTML = '<option value="">— Cargando... —</option>';
+    document.getElementById('solicitudStockRows').innerHTML =
+        '<tr><td colspan="2" style="padding:12px;text-align:center;color:#aaa;font-size:13px;">Cargando...</td></tr>';
+    document.getElementById('solicitudStockModal').classList.add('open');
+
+    try {
+        const h = authHeaders();
+        const [stockRes, sucRes] = await Promise.all([
+            fetch(`/api/stock/producto/${idProducto}`, {headers: h}),
+            fetch('/api/sucursales', {headers: h})
+        ]);
+        const _stockData   = await stockRes.json();
+        const inventarios  = _stockData.datos ?? _stockData;
+        const todasSucData = await sucRes.json();
+        const todasSuc     = todasSucData.datos ?? todasSucData;
+        const miSucursal   = parseInt(localStorage.getItem('idSucursal') || '0');
+        const miNombre     = (todasSuc.find(s => s.idSucursal === miSucursal) || {}).nombre || '';
+
+        // Tabla de stock por sucursal (todas excepto la propia)
+        const rowsData = todasSuc.filter(s => s.idSucursal !== miSucursal).map(s => {
+            const inv  = inventarios.find(i => i.sucursal === s.nombre);
+            const stk  = inv ? (inv.cantidad ?? 0) : 0;
+            const badge = stk > 5
+                ? `<span class="sk-ok">${stk} und.</span>`
+                : stk > 0
+                    ? `<span class="sk-bajo">${stk} und.</span>`
+                    : `<span class="sk-sin">Sin stock</span>`;
+            return { id: s.idSucursal, nombre: s.nombre, stk, badge };
+        });
+
+        document.getElementById('solicitudStockRows').innerHTML = rowsData.length
+            ? rowsData.map(r => `<tr>
+                <td style="padding:8px 12px;font-size:13px;color:#12274B;">${r.nombre}</td>
+                <td style="padding:8px 12px;">${r.badge}</td>
+              </tr>`).join('')
+            : '<tr><td colspan="2" style="padding:12px;text-align:center;color:#aaa;">Sin datos de stock</td></tr>';
+
+        // Select: solo sucursales CON stock > 0 (de nada sirve pedir a quien no tiene)
+        const conStock = rowsData.filter(r => r.stk > 0);
+        if (!conStock.length) {
+            document.getElementById('solicitudSucursalSel').innerHTML =
+                '<option value="">— Ninguna sucursal tiene stock —</option>';
+            document.getElementById('btnEnviarSolicitud').disabled = true;
+            document.getElementById('btnEnviarSolicitud').title = 'No hay stock disponible en otras sucursales';
+        } else {
+            document.getElementById('btnEnviarSolicitud').disabled = false;
+            document.getElementById('btnEnviarSolicitud').title = '';
+            const sel = document.getElementById('solicitudSucursalSel');
+            sel.innerHTML =
+                '<option value="">— Selecciona una sucursal —</option>' +
+                conStock.map(r =>
+                    `<option value="${r.id}" data-max="${r.stk}">${r.nombre} (${r.stk} und. disponibles)</option>`
+                ).join('');
+            // Actualizar max de cantidad al cambiar sucursal
+            sel.onchange = function() {
+                const opt = this.options[this.selectedIndex];
+                const max = parseInt(opt.dataset.max || 1);
+                const cantInput = document.getElementById('solicitudCantidad');
+                cantInput.max = max;
+                if (parseInt(cantInput.value) > max) cantInput.value = max;
+            };
+        }
+    } catch(e) {
+        document.getElementById('solicitudStockRows').innerHTML =
+            '<tr><td colspan="2" style="padding:12px;text-align:center;color:#e74c3c;">Error al cargar stock</td></tr>';
+    }
+}
+
+function cerrarSolicitudModal() {
+    document.getElementById('solicitudStockModal').classList.remove('open');
+    _solicitudIdProducto = null;
+}
+
+function _solicitudFeedback(msg, tipo) {
+    const el = document.getElementById('solicitudFeedback');
+    el.style.display = 'block';
+    el.style.background = tipo === 'error' ? '#fff0f0' : '#f0fff4';
+    el.style.border = '1.5px solid ' + (tipo === 'error' ? '#e74c3c' : '#27ae60');
+    el.style.color = tipo === 'error' ? '#c0392b' : '#1e8449';
+    el.innerHTML = (tipo === 'error'
+        ? '<i class="bi bi-exclamation-circle-fill" style="margin-right:6px"></i>'
+        : '<i class="bi bi-check-circle-fill" style="margin-right:6px"></i>') + msg;
+}
+
+function validarCantidadSolicitud(input) {
+    const max = parseInt(input.max) || Infinity;
+    const val = parseInt(input.value) || 0;
+    const err = document.getElementById('solicitudCantidadError');
+    if (val < 1) {
+        input.style.borderColor = '#e74c3c';
+        err.textContent = 'La cantidad debe ser al menos 1.';
+        err.style.display = 'block';
+    } else if (val > max) {
+        input.value = max;
+        input.style.borderColor = '#e67e22';
+        err.textContent = `Máximo disponible: ${max} unidad(es).`;
+        err.style.display = 'block';
+    } else {
+        input.style.borderColor = '#D0EDFC';
+        err.style.display = 'none';
+    }
+}
+
+async function enviarSolicitudStock() {
+    const idSucursalProveedora = parseInt(document.getElementById('solicitudSucursalSel').value);
+    const cantidad = parseInt(document.getElementById('solicitudCantidad').value);
+    const observacion = document.getElementById('solicitudObservacion').value.trim();
+    document.getElementById('solicitudFeedback').style.display = 'none';
+
+    if (!idSucursalProveedora) { _solicitudFeedback('Selecciona una sucursal proveedora.', 'error'); return; }
+    if (!cantidad || cantidad < 1) { _solicitudFeedback('Ingresa una cantidad válida (mínimo 1).', 'error'); return; }
+
+    const btn = document.getElementById('btnEnviarSolicitud');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-send-fill" style="animation:spin 1s linear infinite"></i> Enviando...';
+
+    try {
+        const h = authHeaders();
+        const body = {
+            idProducto: _solicitudIdProducto,
+            idSucursalProveedora,
+            cantidad,
+            observacion: observacion || null
+        };
+        const res = await fetch('/api/solicitudes-stock', {method:'POST', headers:h, body:JSON.stringify(body)});
+        const data = await res.json();
+        if (!res.ok) {
+            _solicitudFeedback(data.mensaje ?? 'No se pudo enviar la solicitud.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-send-fill"></i> Enviar Solicitud';
+        } else {
+            _solicitudFeedback('¡Solicitud enviada! Se notificó al bodeguero. Te avisarán cuando esté disponible.', 'ok');
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Enviado';
+            setTimeout(() => cerrarSolicitudModal(), 2200);
+        }
+    } catch(e) {
+        _solicitudFeedback('Error de conexión. Intenta de nuevo.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-send-fill"></i> Enviar Solicitud';
+    }
+}
+
 
 /* ════════════════════════════════════════════
    ARRANQUE

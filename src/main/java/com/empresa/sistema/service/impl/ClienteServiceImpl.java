@@ -86,10 +86,15 @@ public class ClienteServiceImpl implements ClienteService {
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
     @Override
-    public PageResponseDTO<ClienteResponseDTO> buscarPaginado(String search, int page, int size) {
+    public PageResponseDTO<ClienteResponseDTO> buscarPaginado(String search, String tipo, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombres").ascending());
+        Cliente.TipoIdentificacion tipoEnum = null;
+        if (tipo != null && !tipo.isBlank()) {
+            try { tipoEnum = Cliente.TipoIdentificacion.valueOf(tipo); } catch (Exception ignored) {}
+        }
         Page<Cliente> resultado = clienteRepository.buscarPaginado(
                 (search != null && !search.isBlank()) ? search : null,
+                tipoEnum,
                 pageable);
         return PageResponseDTO.<ClienteResponseDTO>builder()
                 .contenido(resultado.getContent().stream().map(this::toDTO).collect(Collectors.toList()))

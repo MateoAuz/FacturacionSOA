@@ -236,7 +236,7 @@
         document.getElementById('confirmModal').classList.add('open');
     }
     function cerrarConfirm() { document.getElementById('confirmModal').classList.remove('open'); _confirmCb = null; }
-    function ejecutarConfirm() { cerrarConfirm(); if (_confirmCb) _confirmCb(); }
+    function ejecutarConfirm() { const cb = _confirmCb; cerrarConfirm(); if (cb) cb(); }
 
     /* ── Acciones factura ── */
     function emitirFactura(id) {

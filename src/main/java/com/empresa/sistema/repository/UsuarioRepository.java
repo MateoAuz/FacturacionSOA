@@ -22,4 +22,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     Page<Usuario> buscarPaginado(@Param("search") String search,
                                  @Param("idRol") Integer idRol,
                                  Pageable pageable);
+    List<Usuario> findByRol_NombreAndSucursal_IdSucursalAndActivoTrue(String rolNombre, Integer idSucursal);
 }

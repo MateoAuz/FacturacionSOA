@@ -165,7 +165,7 @@
                             <div class="info-section-title">Emisión</div>
                             <div class="info-line"><span class="info-label">Sucursal:</span><span class="info-val" id="fSucursal">—</span></div>
                             <div class="info-line"><span class="info-label">Cajero:</span><span class="info-val" id="fUsuario">—</span></div>
-                            <div class="info-line"><span class="info-label">Método pago:</span><span class="info-val" id="fMetodo">—</span></div>
+                            <div class="info-line"><span class="info-label">Método pago:</span><span id="fPagos" class="info-val" style="display:flex;flex-direction:column;gap:2px;">—</span></div>
                             <div class="info-line"><span class="info-label">Observación:</span><span class="info-val" id="fObservacion" style="color:#888;font-weight:400;">—</span></div>
                         </div>
                     </div>
@@ -304,8 +304,20 @@
         document.getElementById('fSucursal').textContent      = f.sucursal             ?? '—';
         document.getElementById('fUsuario').textContent       = f.usuario              ?? '—';
 
+        // Formas de pago
         const metodoLabels = { EFECTIVO:'Efectivo', TARJETA:'Tarjeta', TRANSFERENCIA:'Transferencia' };
-        document.getElementById('fMetodo').textContent    = metodoLabels[f.metodoPago] ?? f.metodoPago ?? '—';
+        const metodoIcons  = { EFECTIVO:'💵', TARJETA:'💳', TRANSFERENCIA:'🏦' };
+        const pagos = f.pagos ?? [];
+        if (pagos.length > 0) {
+            document.getElementById('fPagos').innerHTML = pagos.map(p =>
+                `<span style="display:inline-flex;align-items:center;gap:5px;margin-bottom:3px;">
+                    ${metodoIcons[p.metodo] ?? ''}&nbsp;<strong>${metodoLabels[p.metodo] ?? p.metodo}</strong>
+                    <span style="color:#888;font-weight:400;">$${parseFloat(p.monto).toFixed(2)}</span>
+                 </span>`
+            ).join('<br>');
+        } else {
+            document.getElementById('fPagos').textContent = metodoLabels[f.metodoPago] ?? f.metodoPago ?? '—';
+        }
         document.getElementById('fObservacion').textContent = f.observacion || 'Sin observación';
 
         // Totales

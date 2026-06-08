@@ -1,5 +1,6 @@
 package com.empresa.sistema.dto.request;
 
+import com.empresa.sistema.dto.FacturaPagoDTO;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.util.List;
@@ -12,4 +13,6 @@ public class FacturaRequestDTO {
     private String metodoPago = "EFECTIVO";
     private String observacion;
     @NotEmpty private List<DetalleVentaRequestDTO> detalles;
+    /** Formas de pago con monto. Si se envía, tiene prioridad sobre metodoPago. */
+    private List<FacturaPagoDTO> pagos;
 }

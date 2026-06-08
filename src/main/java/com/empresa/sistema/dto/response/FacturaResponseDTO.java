@@ -1,5 +1,6 @@
 package com.empresa.sistema.dto.response;
 
+import com.empresa.sistema.dto.FacturaPagoDTO;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -38,4 +39,7 @@ public class FacturaResponseDTO {
 
     // Detalles de productos
     private List<DetalleVentaResponseDTO> detalles;
+
+    // Formas de pago (multi-pago)
+    private List<FacturaPagoDTO> pagos;
 }

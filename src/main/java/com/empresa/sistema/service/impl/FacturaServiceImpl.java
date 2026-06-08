@@ -212,13 +212,14 @@ public class FacturaServiceImpl implements FacturaService {
     }
 
     @Override
-    public PageResponseDTO<FacturaResponseDTO> buscarPaginado(String search, String estado,
+    public PageResponseDTO<FacturaResponseDTO> buscarPaginado(String search, String campo, String estado,
                                                                Integer idSucursal, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("fechaFactura").descending());
         Factura.EstadoFactura estadoEnum = (estado != null && !estado.isBlank())
                 ? Factura.EstadoFactura.valueOf(estado) : null;
         Page<Factura> resultado = facturaRepository.buscarPaginado(
                 (search != null && !search.isBlank()) ? search : null,
+                (campo != null && !campo.isBlank()) ? campo : null,
                 estadoEnum, idSucursal, pageable);
         return PageResponseDTO.<FacturaResponseDTO>builder()
                 .contenido(resultado.getContent().stream().map(f -> toDTO(f, false)).collect(Collectors.toList()))
@@ -452,8 +453,8 @@ public class FacturaServiceImpl implements FacturaService {
             String pagoResumen = pdfPagos.isEmpty()
                     ? f.getMetodoPago().name()
                     : pdfPagos.stream()
-                              .map(p -> p.getMetodoPago().name() + " $" + p.getMonto().toPlainString())
-                              .collect(java.util.stream.Collectors.joining(" / "));
+                              .map(p -> capitalize(p.getMetodoPago().name()) + ": $" + p.getMonto().toPlainString())
+                              .collect(java.util.stream.Collectors.joining("  |  "));
             strip.addCell(mkStripCell("Pago: " + pagoResumen, fValue, GRAY_BG, BORDER_GRAY));
             doc.add(strip);
 
@@ -507,16 +508,42 @@ public class FacturaServiceImpl implements FacturaService {
             Paragraph pInfoTit = new Paragraph("INFORMACIÓN ADICIONAL", fSecHead);
             pInfoTit.setSpacingAfter(5f);
             infoCell.addElement(pInfoTit);
-            // Formas de pago detalladas en sección info
-            if (pdfPagos.isEmpty()) {
-                infoCell.addElement(mkLine("Método de pago: ", f.getMetodoPago().name(), fLabel, fValue));
-            } else {
-                for (FacturaPago fp : pdfPagos) {
-                    infoCell.addElement(mkLine(
-                        "Pago " + fp.getMetodoPago().name() + ": ",
-                        "$" + fp.getMonto().toPlainString(),
-                        fLabel, fValue));
+            // Formas de pago detalladas — mini tabla
+            {
+                Paragraph pPagoTit = new Paragraph("Formas de pago:", fLabel);
+                pPagoTit.setSpacingAfter(3f);
+                infoCell.addElement(pPagoTit);
+
+                PdfPTable pagoTbl = new PdfPTable(2);
+                pagoTbl.setWidthPercentage(100);
+                pagoTbl.setWidths(new float[]{58f, 42f});
+                pagoTbl.setSpacingAfter(5f);
+
+                // Header row
+                PdfPCell phMet = new PdfPCell(new Phrase("Método", fThdr));
+                phMet.setBackgroundColor(DARK_BLUE); phMet.setPadding(4f); phMet.setBorder(Rectangle.NO_BORDER);
+                PdfPCell phMon = new PdfPCell(new Phrase("Monto", fThdr));
+                phMon.setBackgroundColor(DARK_BLUE); phMon.setPadding(4f); phMon.setBorder(Rectangle.NO_BORDER);
+                phMon.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                pagoTbl.addCell(phMet); pagoTbl.addCell(phMon);
+
+                java.util.List<FacturaPago> pagosList = pdfPagos.isEmpty()
+                    ? java.util.List.of(FacturaPago.builder()
+                        .metodoPago(f.getMetodoPago()).monto(f.getTotal()).build())
+                    : pdfPagos;
+
+                boolean pagoAlt = false;
+                for (FacturaPago fp : pagosList) {
+                    BaseColor pbg = pagoAlt ? GRAY_ROW : BaseColor.WHITE;
+                    PdfPCell cMet = new PdfPCell(new Phrase(capitalize(fp.getMetodoPago().name()), fTcell));
+                    cMet.setBackgroundColor(pbg); cMet.setPadding(4f); cMet.setBorderColor(BORDER_GRAY); cMet.setBorder(Rectangle.BOX);
+                    PdfPCell cMon = new PdfPCell(new Phrase("$ " + fp.getMonto().toPlainString(), fTcell));
+                    cMon.setBackgroundColor(pbg); cMon.setPadding(4f); cMon.setBorderColor(BORDER_GRAY); cMon.setBorder(Rectangle.BOX);
+                    cMon.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    pagoTbl.addCell(cMet); pagoTbl.addCell(cMon);
+                    pagoAlt = !pagoAlt;
                 }
+                infoCell.addElement(pagoTbl);
             }
             if (f.getObservacion() != null && !f.getObservacion().isBlank())
                 infoCell.addElement(mkLine("Observaciones: ", f.getObservacion(), fLabel, fValue));
@@ -540,7 +567,7 @@ public class FacturaServiceImpl implements FacturaService {
                     "$ " + fmt(f.getSubtotal()), fTotLabel, false, BaseColor.WHITE, BORDER_GRAY);
             addTotRow(totTbl, "IVA " + ivaPct + "%:",
                     "$ " + fmt(f.getIvaValor()),  fTotLabel, false, BaseColor.WHITE, BORDER_GRAY);
-            addTotRow(totTbl, "TOTAL A PAGAR:",
+            addTotRow(totTbl, "VALOR TOTAL:",
                     "$ " + fmt(f.getTotal()),     fGrandTot, true,  LIGHT_BLUE,     DARK_BLUE);
 
             totalsCell.addElement(totTbl);
@@ -619,6 +646,11 @@ public class FacturaServiceImpl implements FacturaService {
 
         tbl.addCell(lc);
         tbl.addCell(vc);
+    }
+
+    private String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase();
     }
 
     private String fmt(BigDecimal val) {

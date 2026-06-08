@@ -15,11 +15,14 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Integer> {
     List<Usuario> findByActivoTrue();
     List<Usuario> findBySucursal_IdSucursal(Integer idSucursal);
     @Query("SELECT u FROM Usuario u WHERE " +
-            "(:search IS NULL OR LOWER(u.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(u.correo) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+            "(:search IS NULL OR " +
+            "   (:campo IS NULL AND (LOWER(u.nombre) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(u.username) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(u.correo) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'nombre' AND LOWER(u.nombre) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'username' AND LOWER(u.username) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'correo' AND LOWER(u.correo) LIKE LOWER(CONCAT('%',:search,'%')))) AND " +
             "(:idRol IS NULL OR u.rol.idRol = :idRol)")
     Page<Usuario> buscarPaginado(@Param("search") String search,
+                                 @Param("campo") String campo,
                                  @Param("idRol") Integer idRol,
                                  Pageable pageable);
     List<Usuario> findByRol_NombreAndSucursal_IdSucursalAndActivoTrue(String rolNombre, Integer idSucursal);

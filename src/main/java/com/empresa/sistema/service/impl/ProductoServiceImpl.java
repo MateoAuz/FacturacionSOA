@@ -45,6 +45,11 @@ public class ProductoServiceImpl implements ProductoService {
 
     @Override
     public ProductoResponseDTO crear(ProductoRequestDTO dto) {
+        productoRepository.findByCodigo(dto.getCodigo()).ifPresent(existing -> {
+            throw new RuntimeException(
+                "Ya existe un producto con el código '" + dto.getCodigo() + "'. " +
+                "Usa un código diferente o edita el producto existente.");
+        });
         Categoria categoria = dto.getIdCategoria() != null ?
                 categoriaRepository.findById(dto.getIdCategoria()).orElse(null) : null;
         Producto p = Producto.builder()
@@ -58,6 +63,13 @@ public class ProductoServiceImpl implements ProductoService {
     @Override
     public ProductoResponseDTO actualizar(Integer id, ProductoRequestDTO dto) {
         Producto p = productoRepository.findById(id).orElseThrow(() -> new RuntimeException("Producto no encontrado: " + id));
+        productoRepository.findByCodigo(dto.getCodigo()).ifPresent(existing -> {
+            if (!existing.getIdProducto().equals(id)) {
+                throw new RuntimeException(
+                    "Ya existe otro producto con el código '" + dto.getCodigo() + "'. " +
+                    "Usa un código diferente.");
+            }
+        });
         Categoria categoria = dto.getIdCategoria() != null ?
                 categoriaRepository.findById(dto.getIdCategoria()).orElse(null) : null;
         p.setNombre(dto.getNombre()); p.setDescripcion(dto.getDescripcion());
@@ -74,6 +86,14 @@ public class ProductoServiceImpl implements ProductoService {
     }
 
     @Override
+    public ProductoResponseDTO toggleActivo(Integer id) {
+        Producto p = productoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        p.setActivo(!p.getActivo());
+        return toDTO(productoRepository.save(p));
+    }
+
+    @Override
     public List<ProductoResponseDTO> buscarPorCategoria(Integer idCategoria) {
         return productoRepository.findByCategoria_IdCategoriaAndActivoTrue(idCategoria)
                 .stream().map(this::toDTO).collect(Collectors.toList());
@@ -86,22 +106,23 @@ public class ProductoServiceImpl implements ProductoService {
     }
 
     @Override
-    public PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, Integer idCategoria, int page, int size) {
-        return buscarPaginado(search, idCategoria, null, page, size);
+    public PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, String campo, Integer idCategoria, int page, int size) {
+        return buscarPaginado(search, campo, idCategoria, null, page, size);
     }
 
     @Override
-    public PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, Integer idCategoria, Integer idSucursal, int page, int size) {
+    public PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, String campo, Integer idCategoria, Integer idSucursal, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
+        String campoVal = (campo != null && !campo.isBlank()) ? campo : null;
         Page<Producto> resultado;
         if (idSucursal != null) {
             resultado = productoRepository.buscarPaginadoConStock(
                     (search != null && !search.isBlank()) ? search : null,
-                    idCategoria, pageable);
+                    campoVal, idCategoria, pageable);
         } else {
             resultado = productoRepository.buscarPaginado(
                     (search != null && !search.isBlank()) ? search : null,
-                    idCategoria, pageable);
+                    campoVal, idCategoria, pageable);
         }
         final Integer sucId = idSucursal;
         return PageResponseDTO.<ProductoResponseDTO>builder()

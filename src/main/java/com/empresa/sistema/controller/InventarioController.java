@@ -54,10 +54,11 @@ public class InventarioController {
     @Operation(summary = "Listar inventario paginado con búsqueda y filtros")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<InventarioResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String campo,
             @RequestParam(required = false) Integer idSucursal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.buscarPaginado(search, idSucursal, page, size)));
+        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.buscarPaginado(search, campo, idSucursal, page, size)));
     }
 
     @PutMapping("/{id}")

@@ -15,7 +15,7 @@ public interface FacturaService {
     // ── Consultas ────────────────────────────────────────────────
     List<FacturaResponseDTO>              listarTodas();
     List<FacturaResponseDTO>              listarPorSucursal(Integer idSucursal);
-    PageResponseDTO<FacturaResponseDTO>   buscarPaginado(String search, String estado,
+    PageResponseDTO<FacturaResponseDTO>   buscarPaginado(String search, String campo, String estado,
                                                          Integer idSucursal, int page, int size);
 
     // ── Utilidades ───────────────────────────────────────────────

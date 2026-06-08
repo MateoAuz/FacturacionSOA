@@ -165,7 +165,6 @@
                             <div class="info-section-title">Emisión</div>
                             <div class="info-line"><span class="info-label">Sucursal:</span><span class="info-val" id="fSucursal">—</span></div>
                             <div class="info-line"><span class="info-label">Cajero:</span><span class="info-val" id="fUsuario">—</span></div>
-                            <div class="info-line"><span class="info-label">Método pago:</span><span id="fPagos" class="info-val" style="display:flex;flex-direction:column;gap:2px;">—</span></div>
                             <div class="info-line"><span class="info-label">Observación:</span><span class="info-val" id="fObservacion" style="color:#888;font-weight:400;">—</span></div>
                         </div>
                     </div>
@@ -201,6 +200,24 @@
                         <div class="total-row"><span style="color:#888">Subtotal</span><span id="fSubtotal">—</span></div>
                         <div class="total-row"><span id="fIvaLabel" style="color:#888">IVA</span><span id="fIva">—</span></div>
                         <div class="total-row final"><span>TOTAL</span><span id="fTotal">—</span></div>
+                    </div>
+                </div>
+
+                <!-- Formas de pago -->
+                <div class="d-card">
+                    <div class="d-head">Formas de Pago</div>
+                    <div class="d-body" style="padding:0;">
+                        <table style="width:100%;border-collapse:collapse;" id="fPagosTabla">
+                            <thead>
+                                <tr style="background:#f8fafc;">
+                                    <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#12274B;text-align:left;border-bottom:1.5px solid #D0EDFC;">Método</th>
+                                    <th style="padding:8px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#12274B;text-align:right;border-bottom:1.5px solid #D0EDFC;">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fPagos">
+                                <tr><td colspan="2" style="padding:12px;text-align:center;color:#aaa;font-size:13px;">—</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
@@ -304,19 +321,34 @@
         document.getElementById('fSucursal').textContent      = f.sucursal             ?? '—';
         document.getElementById('fUsuario').textContent       = f.usuario              ?? '—';
 
-        // Formas de pago
-        const metodoLabels = { EFECTIVO:'Efectivo', TARJETA:'Tarjeta', TRANSFERENCIA:'Transferencia' };
-        const metodoIcons  = { EFECTIVO:'💵', TARJETA:'💳', TRANSFERENCIA:'🏦' };
+        // Formas de pago — tabla en columna derecha
+        const metodoLabels = { EFECTIVO:'Efectivo', TARJETA:'Tarjeta de crédito/débito', TRANSFERENCIA:'Transferencia bancaria' };
+        const metodoIcons  = { EFECTIVO:'bi-cash-stack', TARJETA:'bi-credit-card-fill', TRANSFERENCIA:'bi-bank2' };
         const pagos = f.pagos ?? [];
+        const tbody = document.getElementById('fPagos');
         if (pagos.length > 0) {
-            document.getElementById('fPagos').innerHTML = pagos.map(p =>
-                `<span style="display:inline-flex;align-items:center;gap:5px;margin-bottom:3px;">
-                    ${metodoIcons[p.metodo] ?? ''}&nbsp;<strong>${metodoLabels[p.metodo] ?? p.metodo}</strong>
-                    <span style="color:#888;font-weight:400;">$${parseFloat(p.monto).toFixed(2)}</span>
-                 </span>`
-            ).join('<br>');
-        } else {
-            document.getElementById('fPagos').textContent = metodoLabels[f.metodoPago] ?? f.metodoPago ?? '—';
+            tbody.innerHTML = pagos.map((p, i) => {
+                const bg = i % 2 === 1 ? 'background:#f8fafc;' : '';
+                const icon = metodoIcons[p.metodo] ?? 'bi-cash';
+                const label = metodoLabels[p.metodo] ?? p.metodo;
+                return `<tr style="${bg}">
+                    <td style="padding:9px 14px;font-size:13px;color:#12274B;border-bottom:1px solid #f0f4f8;">
+                        <i class="bi ${icon}" style="margin-right:7px;color:#1468B1;"></i>${label}
+                    </td>
+                    <td style="padding:9px 14px;font-size:13px;font-weight:600;color:#12274B;text-align:right;border-bottom:1px solid #f0f4f8;">
+                        $${parseFloat(p.monto).toFixed(2)}
+                    </td>
+                </tr>`;
+            }).join('');
+        } else if (f.metodoPago) {
+            const icon = metodoIcons[f.metodoPago] ?? 'bi-cash';
+            const label = metodoLabels[f.metodoPago] ?? f.metodoPago;
+            tbody.innerHTML = `<tr>
+                <td style="padding:9px 14px;font-size:13px;color:#12274B;">
+                    <i class="bi ${icon}" style="margin-right:7px;color:#1468B1;"></i>${label}
+                </td>
+                <td style="padding:9px 14px;font-size:13px;font-weight:600;text-align:right;color:#12274B;">—</td>
+            </tr>`;
         }
         document.getElementById('fObservacion').textContent = f.observacion || 'Sin observación';
 

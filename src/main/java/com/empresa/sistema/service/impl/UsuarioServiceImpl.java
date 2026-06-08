@@ -47,6 +47,10 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     public UsuarioResponseDTO crear(UsuarioRequestDTO dto) {
+        if (usuarioRepository.findByUsername(dto.getUsername()).isPresent()) {
+            throw new RuntimeException(
+                "Ya existe un usuario con el nombre de usuario '" + dto.getUsername() + "'. Elige otro username.");
+        }
         Rol rol = rolRepository.findById(dto.getIdRol())
                 .orElseThrow(() -> new RuntimeException("Rol no encontrado"));
         Sucursal sucursal = (dto.getIdSucursal() != null)
@@ -103,10 +107,11 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
-    public PageResponseDTO<UsuarioResponseDTO> buscarPaginado(String search, Integer idRol, int page, int size) {
+    public PageResponseDTO<UsuarioResponseDTO> buscarPaginado(String search, String campo, Integer idRol, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
         Page<Usuario> resultado = usuarioRepository.buscarPaginado(
                 (search != null && !search.isBlank()) ? search : null,
+                (campo != null && !campo.isBlank()) ? campo : null,
                 idRol,
                 pageable);
         return PageResponseDTO.<UsuarioResponseDTO>builder()

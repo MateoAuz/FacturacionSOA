@@ -107,20 +107,20 @@
             <button onclick="cerrarClienteModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;">
+            <select id="clFiltroCampo" onchange="buscarClientesPage(0)"
+                style="flex:1;min-width:150px;padding:9px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;color:#12274B;outline:none;background:white;">
+                <option value="">Buscar por...</option>
+                <option value="identificacion">Identificación</option>
+                <option value="nombre">Nombre</option>
+                <option value="correo">Correo</option>
+            </select>
             <div style="position:relative;flex:2;">
                 <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4C97D2;font-size:13px;pointer-events:none;"></i>
-                <input type="text" id="clBuscador" placeholder="Nombre, apellido o cédula..."
-                    style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
+                <input type="text" id="clBuscador" placeholder="Buscar cliente..."
+                    style="width:100%;padding:9px 28px 9px 32px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
                     oninput="buscarClientesPage(0)" onkeydown="if(event.key==='Enter')buscarClientesPage(0)"/>
+                <button id="clBuscadorClear" onclick="document.getElementById('clBuscador').value='';document.getElementById('clBuscadorClear').style.display='none';buscarClientesPage(0)" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
             </div>
-            <select id="clFiltroTipo" onchange="buscarClientesPage(0)"
-                style="flex:1;min-width:150px;padding:9px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;color:#12274B;outline:none;background:white;">
-                <option value="">Todos los tipos</option>
-                <option value="CEDULA">Cédula</option>
-                <option value="RUC">RUC</option>
-                <option value="PASAPORTE">Pasaporte</option>
-                <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
-            </select>
             <button class="btn" onclick="abrirNuevoClienteModal()" style="background:#d1fae5;color:#065f46;font-weight:700;white-space:nowrap"><i class="bi bi-person-plus-fill"></i> Nuevo</button>
         </div>
         <div class="tbl-container">
@@ -193,7 +193,7 @@
                     <span class="nc-err" id="ncTelefonoErr"></span>
                 </div>
                 <div class="fg">
-                    <label>Correo Electrónico</label>
+                    <label>Correo Electrónico <span style="color:#ef4444">*</span></label>
                     <input type="email" id="ncCorreo" class="nc-inp" placeholder="ejemplo@correo.com" maxlength="80"
                            style="width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
                            oninput="this.value=this.value.toLowerCase();ncLimpiarErr('ncCorreoErr')"
@@ -224,11 +224,18 @@
             <button onclick="cerrarProductoModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888">×</button>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:4px;align-items:center;">
+            <select id="proFiltroCampo" onchange="buscarProductosPage(0)"
+                style="flex:1;min-width:140px;padding:9px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;color:#12274B;outline:none;background:white;">
+                <option value="">Buscar por...</option>
+                <option value="nombre">Nombre</option>
+                <option value="codigo">Código</option>
+            </select>
             <div style="position:relative;flex:2;">
                 <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#4C97D2;font-size:13px;pointer-events:none;"></i>
-                <input type="text" id="proBuscador" placeholder="Nombre o código del producto..."
-                    style="width:100%;padding:9px 12px 9px 32px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
+                <input type="text" id="proBuscador" placeholder="Buscar producto..."
+                    style="width:100%;padding:9px 28px 9px 32px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
                     oninput="buscarProductosPage(0)" onkeydown="if(event.key==='Enter')buscarProductosPage(0)"/>
+                <button id="proBuscadorClear" onclick="document.getElementById('proBuscador').value='';document.getElementById('proBuscadorClear').style.display='none';buscarProductosPage(0)" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
             </div>
             <select id="proFiltroCategoria" onchange="buscarProductosPage(0)"
                 style="flex:1;min-width:140px;padding:9px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;color:#12274B;outline:none;background:white;">
@@ -655,10 +662,10 @@ async function buscarClientesPage(page) {
     const q = document.getElementById('clBuscador').value.trim();
     const h = authHeaders();
     document.getElementById('clTabla').innerHTML = '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:16px">Cargando...</td></tr>';
-    const tipo = document.getElementById('clFiltroTipo')?.value;
+    const campo = document.getElementById('clFiltroCampo')?.value;
     try {
         let url = `/api/clientes/paginado?page=${page}&size=${CL_SIZE}${q ? '&search='+encodeURIComponent(q) : ''}`;
-        if (tipo) url += `&tipo=${tipo}`;
+        if (campo) url += `&campo=${encodeURIComponent(campo)}`;
         const res  = await fetch(url, {headers:h});
         const data = await res.json();
         const pd   = data.datos ?? data;
@@ -789,7 +796,7 @@ function ncValidarTexto(inputId, errId, label) {
 
 function ncValidarCorreo() {
     const val = document.getElementById('ncCorreo').value.trim();
-    if (!val) { ncMostrarErr('ncCorreoErr', ''); return true; }
+    if (!val) { ncMostrarErr('ncCorreoErr', 'El correo electrónico es obligatorio'); return false; }
     const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
     ncMostrarErr('ncCorreoErr', ok ? '' : 'Formato de correo inválido');
     return ok;
@@ -874,11 +881,13 @@ async function buscarProductosPage(page) {
     const h = authHeaders();
     document.getElementById('proTabla').innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:16px">Cargando...</td></tr>';
     try {
+        const proFiltroCampo = document.getElementById('proFiltroCampo')?.value;
         const idCategoria = document.getElementById('proFiltroCategoria')?.value;
         let url = `/api/productos/paginado?page=${page}&size=${PRO_SIZE}`;
-        if (q)           url += `&search=${encodeURIComponent(q)}`;
-        if (idSucursal)  url += `&idSucursal=${idSucursal}`;
-        if (idCategoria) url += `&idCategoria=${idCategoria}`;
+        if (q)             url += `&search=${encodeURIComponent(q)}`;
+        if (proFiltroCampo) url += `&campo=${encodeURIComponent(proFiltroCampo)}`;
+        if (idSucursal)    url += `&idSucursal=${idSucursal}`;
+        if (idCategoria)   url += `&idCategoria=${idCategoria}`;
         const res  = await fetch(url, {headers:h});
         const data = await res.json();
         const pd   = data.datos ?? data;
@@ -1193,7 +1202,7 @@ function actualizarVuelto() {
     const msgEl  = document.getElementById('pagoMsg');
     const btn    = document.getElementById('btnGuardar');
     const exacto = Math.abs(vuelto) < 0.005;
-    vEl.textContent = `$${Math.abs(vuelto).toFixed(2)}${vuelto < 0 ? ' (falta)' : ''}`;
+    vEl.textContent = `$${Math.abs(vuelto).toFixed(2)}`;
     vEl.className   = exacto ? 'vuelto-ok' : 'vuelto-mal';
     if (detalles.length && pagos.length && exacto) {
         msgEl.style.display = 'none';
@@ -1476,6 +1485,12 @@ async function enviarSolicitudStock() {
    ARRANQUE
 ════════════════════════════════════════════ */
 inicializar();
+    document.getElementById('clBuscador').addEventListener('input', function() {
+        document.getElementById('clBuscadorClear').style.display = this.value ? 'block' : 'none';
+    });
+    document.getElementById('proBuscador').addEventListener('input', function() {
+        document.getElementById('proBuscadorClear').style.display = this.value ? 'block' : 'none';
+    });
 </script>
 </body>
 </html>

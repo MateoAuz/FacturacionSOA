@@ -12,5 +12,5 @@ public interface UsuarioService {
     UsuarioResponseDTO actualizar(Integer id, UsuarioRequestDTO dto);
     void eliminar(Integer id);
     void cambiarEstado(Integer id, Boolean activo);
-    PageResponseDTO<UsuarioResponseDTO> buscarPaginado(String search, Integer idRol, int page, int size);
+    PageResponseDTO<UsuarioResponseDTO> buscarPaginado(String search, String campo, Integer idRol, int page, int size);
 }

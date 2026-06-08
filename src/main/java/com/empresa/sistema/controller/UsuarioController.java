@@ -37,10 +37,11 @@ public class UsuarioController {
     @Operation(summary = "Listar usuarios paginado con búsqueda y filtros")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<UsuarioResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String campo,
             @RequestParam(required = false) Integer idRol,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponseDTO.ok(usuarioService.buscarPaginado(search, idRol, page, size)));
+        return ResponseEntity.ok(ApiResponseDTO.ok(usuarioService.buscarPaginado(search, campo, idRol, page, size)));
     }
 
     @GetMapping("/{id}")

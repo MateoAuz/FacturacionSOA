@@ -15,9 +15,12 @@ public interface InventarioRepository extends JpaRepository<Inventario, Integer>
     List<Inventario> findByProducto_IdProducto(Integer idProducto);
     @Query("SELECT i FROM Inventario i WHERE " +
             "(:idSucursal IS NULL OR i.sucursal.idSucursal = :idSucursal) AND " +
-            "(:search IS NULL OR LOWER(i.producto.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(i.producto.codigo) LIKE LOWER(CONCAT('%', :search, '%')))")
+            "(:search IS NULL OR " +
+            "   (:campo IS NULL AND (LOWER(i.producto.nombre) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(i.producto.codigo) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'nombre' AND LOWER(i.producto.nombre) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'codigo' AND LOWER(i.producto.codigo) LIKE LOWER(CONCAT('%',:search,'%'))))")
     Page<Inventario> buscarPaginado(@Param("search") String search,
+                                    @Param("campo") String campo,
                                     @Param("idSucursal") Integer idSucursal,
                                     Pageable pageable);
 }

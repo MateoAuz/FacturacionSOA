@@ -79,12 +79,13 @@ public class ProductoController {
     @Operation(summary = "Listar productos paginado con búsqueda y filtros")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ProductoResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String campo,
             @RequestParam(required = false) Integer idCategoria,
             @RequestParam(required = false) Integer idSucursal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponseDTO.ok(
-                productoService.buscarPaginado(search, idCategoria, idSucursal, page, size)));
+                productoService.buscarPaginado(search, campo, idCategoria, idSucursal, page, size)));
     }
 
 
@@ -95,5 +96,12 @@ public class ProductoController {
     public ResponseEntity<ApiResponseDTO<Void>> eliminar(@PathVariable Integer id) {
         productoService.eliminar(id);
         return ResponseEntity.ok(ApiResponseDTO.ok("Producto eliminado", null));
+    }
+
+    @PatchMapping("/{id}/toggle-activo")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Activar o desactivar producto")
+    public ResponseEntity<ApiResponseDTO<ProductoResponseDTO>> toggleActivo(@PathVariable Integer id) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(productoService.toggleActivo(id)));
     }
 }

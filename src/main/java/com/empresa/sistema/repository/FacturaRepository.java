@@ -21,9 +21,13 @@ public interface FacturaRepository extends JpaRepository<Factura, Integer> {
            "JOIN FETCH f.sucursal " +
            "WHERE (:estado IS NULL OR f.estado = :estado) AND " +
            "(:idSucursal IS NULL OR f.sucursal.idSucursal = :idSucursal) AND " +
-           "(:search IS NULL OR LOWER(f.numeroSecuencial) LIKE LOWER(CONCAT('%',:search,'%')) OR " +
-           "LOWER(f.cliente.nombres) LIKE LOWER(CONCAT('%',:search,'%')))")
+           "(:search IS NULL OR " +
+           "   (:campo IS NULL AND (LOWER(f.numeroSecuencial) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(f.cliente.nombres) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(f.cliente.identificacion) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+           "   (:campo = 'numero' AND LOWER(f.numeroSecuencial) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+           "   (:campo = 'cliente' AND LOWER(f.cliente.nombres) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+           "   (:campo = 'identificacion' AND LOWER(f.cliente.identificacion) LIKE LOWER(CONCAT('%',:search,'%'))))" )
     Page<Factura> buscarPaginado(@Param("search")     String search,
+                                 @Param("campo")      String campo,
                                  @Param("estado")     Factura.EstadoFactura estado,
                                  @Param("idSucursal") Integer idSucursal,
                                  Pageable pageable);

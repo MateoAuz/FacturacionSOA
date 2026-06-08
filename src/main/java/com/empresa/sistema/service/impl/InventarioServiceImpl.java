@@ -85,10 +85,11 @@ public class InventarioServiceImpl implements InventarioService {
         return toDTO(inventarioRepository.save(inv));
     }
     @Override
-    public PageResponseDTO<InventarioResponseDTO> buscarPaginado(String search, Integer idSucursal, int page, int size) {
+    public PageResponseDTO<InventarioResponseDTO> buscarPaginado(String search, String campo, Integer idSucursal, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("producto.nombre").ascending());
         Page<Inventario> resultado = inventarioRepository.buscarPaginado(
                 (search != null && !search.isBlank()) ? search : null,
+                (campo != null && !campo.isBlank()) ? campo : null,
                 idSucursal,
                 pageable);
         return PageResponseDTO.<InventarioResponseDTO>builder()

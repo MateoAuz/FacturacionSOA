@@ -54,12 +54,13 @@ public class FacturaController {
     @Operation(summary = "Listar facturas paginado con filtros")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<FacturaResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String campo,
             @RequestParam(required = false) String estado,
             @RequestParam(required = false) Integer idSucursal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponseDTO.ok(
-                facturaService.buscarPaginado(search, estado, idSucursal, page, size)));
+                facturaService.buscarPaginado(search, campo, estado, idSucursal, page, size)));
     }
 
     // ── Ciclo de vida ─────────────────────────────────────────────

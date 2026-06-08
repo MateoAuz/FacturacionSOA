@@ -56,9 +56,23 @@
 
         <!-- Filtros -->
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
-            <input type="text" id="buscador" placeholder="Buscar por número o cliente..."
+            <select id="filtroCampo" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Buscar por...</option>
+                <option value="numero">Nº Factura</option>
+                <option value="cliente">Cliente</option>
+                <option value="identificacion">Identificación</option>
+            </select>
+            <div style="position:relative;flex:1;min-width:200px;">
+                <input type="text" id="buscador" placeholder="Buscar factura..."
                    oninput="resetPagina()"
-                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+                   style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;padding-right:28px;outline:none;color:#12274B"/>
+                <button id="buscadorClear" onclick="document.getElementById('buscador').value='';document.getElementById('buscadorClear').style.display='none';resetPagina()" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
+            </div>
+            <select id="filtroSucursal" onchange="resetPagina()"
+                    style="display:none;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px;">
+                <option value="">Todas las sucursales</option>
+            </select>
             <select id="filtroEstado" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
                 <option value="">Todos los estados</option>
@@ -103,6 +117,23 @@
 <script>
     if (rol === 'BODEGUERO') window.location.href = '/inventario';
 
+    // Cargar sucursales y mostrar filtro solo para ADMIN
+    if (rol === 'ADMIN') {
+        document.getElementById('filtroSucursal').style.display = 'block';
+        fetch('/api/sucursales', {headers: authHeaders()})
+            .then(r => r.json())
+            .then(data => {
+                const sucs = data.datos ?? data ?? [];
+                const sel = document.getElementById('filtroSucursal');
+                sucs.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.idSucursal;
+                    opt.textContent = s.nombre;
+                    sel.appendChild(opt);
+                });
+            }).catch(() => {});
+    }
+
     let paginaActual = 0;
     let totalPaginas = 0;
 
@@ -125,15 +156,20 @@
     async function cargarDatos() {
         const h = authHeaders();
         const search = document.getElementById('buscador').value;
+        const campo = document.getElementById('filtroCampo').value;
         const estado = document.getElementById('filtroEstado').value;
         const size = document.getElementById('filtroSize').value;
 
         let url = `/api/facturas/paginado?page=${paginaActual}&size=${size}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (campo) url += `&campo=${encodeURIComponent(campo)}`;
         if (estado) url += `&estado=${estado}`;
         if (rol === 'CAJERO') {
             const idSucursal = localStorage.getItem('idSucursal');
             if (idSucursal) url += `&idSucursal=${idSucursal}`;
+        } else if (rol === 'ADMIN') {
+            const filtroSuc = document.getElementById('filtroSucursal').value;
+            if (filtroSuc) url += `&idSucursal=${filtroSuc}`;
         }
 
         try {
@@ -310,6 +346,9 @@
     }
 
     cargarDatos();
+    document.getElementById('buscador').addEventListener('input', function() {
+        document.getElementById('buscadorClear').style.display = this.value ? 'block' : 'none';
+    });
 </script>
 </body>
 </html>

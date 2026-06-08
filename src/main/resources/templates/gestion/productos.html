@@ -64,9 +64,18 @@
         </div>
 
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
-            <input type="text" id="buscador" placeholder="Buscar por nombre o código..."
+            <select id="filtroCampo" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Buscar por...</option>
+                <option value="nombre">Nombre</option>
+                <option value="codigo">Código</option>
+            </select>
+            <div style="position:relative;flex:1;min-width:200px;">
+                <input type="text" id="buscador" placeholder="Buscar producto..."
                    oninput="resetPagina()"
-                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+                   style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;padding-right:28px;outline:none;color:#12274B"/>
+                <button id="buscadorClear" onclick="document.getElementById('buscador').value='';document.getElementById('buscadorClear').style.display='none';resetPagina()" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
+            </div>
             <select id="filtroCat" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
                 <option value="">Todas las categorías</option>
@@ -287,11 +296,13 @@
     async function cargarDatos() {
         const h = authHeaders();
         const search = document.getElementById('buscador').value;
+        const campo = document.getElementById('filtroCampo').value;
         const idCategoria = document.getElementById('filtroCat').value;
         const size = document.getElementById('filtroSize').value;
 
         let url = `/api/productos/paginado?page=${paginaActual}&size=${size}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (campo) url += `&campo=${encodeURIComponent(campo)}`;
         if (idCategoria) url += `&idCategoria=${idCategoria}`;
 
         try {
@@ -319,8 +330,9 @@
                     <td><strong>$${parseFloat(p.precioVenta).toFixed(2)}</strong></td>
                     <td><span class="badge ${p.aplicaIva ? 'badge-success' : 'badge-danger'}">${p.aplicaIva ? 'Sí' : 'No'}</span></td>
                     <td><span class="badge ${p.activo ? 'badge-success' : 'badge-danger'}">${p.activo ? 'Activo' : 'Inactivo'}</span></td>
-                    <td>
+                    <td style="white-space:nowrap">
                         <button class="btn btn-primary btn-sm" onclick="editarProducto(${p.idProducto})"><i class="bi bi-pencil-fill"></i> Editar / Stock</button>
+                        <button class="btn btn-sm" style="background:${p.activo?'#fee2e2':'#d1fae5'};color:${p.activo?'#991b1b':'#065f46'};margin-left:4px" onclick="toggleActivoProducto(${p.idProducto},${p.activo})"><i class="bi bi-${p.activo?'toggle-on':'toggle-off'}"></i> ${p.activo?'Desactivar':'Activar'}</button>
                     </td>
                 </tr>
             `).join('');
@@ -454,6 +466,18 @@
 
     function cerrarModal() {
         document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    async function toggleActivoProducto(id, activo) {
+        const accion = activo ? 'desactivar' : 'activar';
+        if (!confirm(`¿Deseas ${accion} este producto?`)) return;
+        const h = authHeaders();
+        try {
+            const res = await fetch(`/api/productos/${id}/toggle-activo`, {method:'PATCH', headers:h});
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.mensaje ?? 'Error');
+            cargarDatos();
+        } catch(e) { mostrarAlert('Error', e.message, 'error'); }
     }
 
     async function editarProducto(id) {
@@ -741,7 +765,14 @@
     }
 
     inicializar();
+
+    // Clear button
+    document.getElementById('buscador').addEventListener('input',function(){document.getElementById('buscadorClear').style.display=this.value?'block':'none';});
+    document.getElementById('buscador').addEventListener('input', function() {
+        document.getElementById('buscadorClear').style.display = this.value ? 'block' : 'none';
+    });
 </script>
+    
 
 <!-- Modal: Solicitudes Pendientes (BODEGUERO) -->
 <div class="cm-ov" id="solicitudesPanelOv" style="align-items:flex-start;padding-top:60px;">

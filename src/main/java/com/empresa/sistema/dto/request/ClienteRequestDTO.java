@@ -10,5 +10,6 @@ public class ClienteRequestDTO {
     private String razonSocial;
     private String direccion;
     private String telefono;
-    @Email private String correo;
+    @NotBlank(message = "El correo electrónico es obligatorio")
+    @Email(message = "Formato de correo inválido") private String correo;
 }

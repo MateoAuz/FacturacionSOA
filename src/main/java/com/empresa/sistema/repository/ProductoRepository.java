@@ -17,9 +17,13 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     List<Producto> findByCategoria_IdCategoriaAndActivoTrue(Integer idCategoria);
 
     @Query("SELECT p FROM Producto p WHERE p.activo = true AND " +
-            "(:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
-            "(:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria)")
+            "(:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria) AND " +
+            "(:search IS NULL OR " +
+            "   (:campo IS NULL AND (LOWER(p.nombre) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(p.codigo) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'nombre' AND LOWER(p.nombre) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'codigo' AND LOWER(p.codigo) LIKE LOWER(CONCAT('%',:search,'%'))))")
     Page<Producto> buscarPaginado(@Param("search") String search,
+                                  @Param("campo") String campo,
                                   @Param("idCategoria") Integer idCategoria,
                                   Pageable pageable);
 
@@ -27,14 +31,19 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     @Query(value = "SELECT DISTINCT p FROM Producto p " +
             "WHERE p.activo = true " +
             "AND (:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria) " +
-            "AND (:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "  OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%')))",
+            "AND (:search IS NULL OR " +
+            "   (:campo IS NULL AND (LOWER(p.nombre) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(p.codigo) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'nombre' AND LOWER(p.nombre) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'codigo' AND LOWER(p.codigo) LIKE LOWER(CONCAT('%',:search,'%'))))",
            countQuery = "SELECT COUNT(DISTINCT p) FROM Producto p " +
             "WHERE p.activo = true " +
             "AND (:idCategoria IS NULL OR p.categoria.idCategoria = :idCategoria) " +
-            "AND (:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "  OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%')))")
+            "AND (:search IS NULL OR " +
+            "   (:campo IS NULL AND (LOWER(p.nombre) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(p.codigo) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'nombre' AND LOWER(p.nombre) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'codigo' AND LOWER(p.codigo) LIKE LOWER(CONCAT('%',:search,'%'))))")
     Page<Producto> buscarPaginadoConStock(@Param("search") String search,
+                                          @Param("campo") String campo,
                                           @Param("idCategoria") Integer idCategoria,
                                           Pageable pageable);
 }

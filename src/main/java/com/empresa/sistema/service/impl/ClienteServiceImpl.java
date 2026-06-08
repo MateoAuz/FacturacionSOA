@@ -41,6 +41,11 @@ public class ClienteServiceImpl implements ClienteService {
 
     @Override
     public ClienteResponseDTO crear(ClienteRequestDTO dto) {
+        if (clienteRepository.findByIdentificacion(dto.getIdentificacion()).isPresent()) {
+            throw new RuntimeException(
+                "Ya existe un cliente registrado con la identificación " + dto.getIdentificacion() +
+                ". Puedes buscarlo directamente en el listado.");
+        }
         Cliente c = Cliente.builder()
                 .tipoIdentificacion(Cliente.TipoIdentificacion.valueOf(dto.getTipoIdentificacion()))
                 .identificacion(dto.getIdentificacion())
@@ -73,15 +78,29 @@ public class ClienteServiceImpl implements ClienteService {
     }
 
     @Override
+    public void cambiarEstado(Integer id, Boolean activo) {
+        Cliente c = clienteRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado: " + id));
+        c.setActivo(activo);
+        clienteRepository.save(c);
+    }
+
+    @Override
     public List<ClienteResponseDTO> buscarPorNombre(String nombre) {
         return clienteRepository.findByNombresContainingIgnoreCaseOrApellidosContainingIgnoreCase(nombre, nombre)
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
     @Override
-    public PageResponseDTO<ClienteResponseDTO> buscarPaginado(String search, int page, int size) {
+    public PageResponseDTO<ClienteResponseDTO> buscarPaginado(String search, String campo, String tipo, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombres").ascending());
+        Cliente.TipoIdentificacion tipoEnum = null;
+        if (tipo != null && !tipo.isBlank()) {
+            try { tipoEnum = Cliente.TipoIdentificacion.valueOf(tipo); } catch (Exception ignored) {}
+        }
         Page<Cliente> resultado = clienteRepository.buscarPaginado(
                 (search != null && !search.isBlank()) ? search : null,
+                (campo != null && !campo.isBlank()) ? campo : null,
+                tipoEnum,
                 pageable);
         return PageResponseDTO.<ClienteResponseDTO>builder()
                 .contenido(resultado.getContent().stream().map(this::toDTO).collect(Collectors.toList()))

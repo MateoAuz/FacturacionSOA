@@ -1,83 +1,305 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout :: head('Dashboard')}"></head>
+<style>
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:24px; }
+    @media(max-width:1200px){ .kpi-grid { grid-template-columns:repeat(2,1fr); } }
+    .kpi-card {
+        background:white; border-radius:14px; padding:22px 24px;
+        box-shadow:0 2px 10px rgba(18,39,75,.08);
+        display:flex; align-items:center; gap:18px;
+        transition: transform .2s, box-shadow .2s;
+    }
+    .kpi-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(18,39,75,.13); }
+    .kpi-icon {
+        width:52px; height:52px; border-radius:14px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:22px; flex-shrink:0;
+    }
+    .kpi-icon.blue   { background:#dbeafe; color:#1468B1; }
+    .kpi-icon.yellow { background:#fef3c7; color:#d97706; }
+    .kpi-icon.green  { background:#d1fae5; color:#059669; }
+    .kpi-icon.purple { background:#ede9fe; color:#7c3aed; }
+    .kpi-icon.red    { background:#fee2e2; color:#dc2626; }
+    .kpi-val  { font-size:30px; font-weight:800; color:#12274B; line-height:1.1; }
+    .kpi-lbl  { font-size:11px; color:#888; margin-top:3px; text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
+    .kpi-sub  { font-size:11px; color:#4C97D2; margin-top:5px; font-weight:600; }
+    .kpi-sub.warn { color:#d97706; }
+
+    .dash-grid { display:grid; grid-template-columns:1fr 300px; gap:20px; align-items:start; }
+    @media(max-width:1200px){ .dash-grid { grid-template-columns:1fr; } }
+
+    .dash-card { background:white; border-radius:14px; overflow:hidden; box-shadow:0 2px 10px rgba(18,39,75,.08); }
+    .dash-card-head {
+        padding:14px 20px; border-bottom:1px solid #f0f4f8;
+        font-size:12px; font-weight:700; color:#12274B;
+        display:flex; align-items:center; gap:8px;
+        text-transform:uppercase; letter-spacing:.5px;
+    }
+    .dash-card-head i { color:#1468B1; font-size:15px; }
+
+    .fact-row {
+        display:flex; align-items:center; gap:10px; padding:11px 20px;
+        border-bottom:1px solid #f8fafc; font-size:13px; text-decoration:none; color:inherit;
+    }
+    .fact-row:last-child { border-bottom:none; }
+    .fact-row:hover { background:#f8fafc; }
+    .fact-num  { font-weight:700; color:#12274B; font-size:12px; min-width:140px; }
+    .fact-cli  { color:#555; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+    .fact-tot  { font-weight:700; color:#1468B1; min-width:75px; text-align:right; font-size:13px; }
+    .fact-date { font-size:11px; color:#aaa; min-width:75px; text-align:right; }
+
+    .qa-btn {
+        display:flex; align-items:center; gap:12px; padding:13px 16px;
+        border-radius:10px; border:none; cursor:pointer; font-size:13px; font-weight:600;
+        width:100%; text-align:left; transition: all .18s; margin-bottom:8px;
+        text-decoration:none;
+    }
+    .qa-btn i { font-size:18px; flex-shrink:0; }
+    .qa-btn-label { line-height:1.3; }
+    .qa-btn-sub { font-size:11px; font-weight:400; opacity:.7; margin-top:1px; }
+    .qa-btn.primary { background:#1468B1; color:white; }
+    .qa-btn.primary:hover { background:#12274B; }
+    .qa-btn.secondary { background:#f0f4f8; color:#12274B; }
+    .qa-btn.secondary:hover { background:#e2e8f0; }
+    .qa-btn.green { background:#d1fae5; color:#065f46; }
+    .qa-btn.green:hover { background:#a7f3d0; }
+    .qa-btn.purple { background:#ede9fe; color:#5b21b6; }
+    .qa-btn.purple:hover { background:#ddd6fe; }
+
+    .welcome-banner {
+        background: linear-gradient(135deg, #12274B 0%, #1468B1 65%, #2A7ABF 100%);
+        color: white; border-radius: 14px; padding: 26px 32px; margin-bottom: 22px;
+        display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;
+    }
+    .welcome-left h2 { font-size:20px; font-weight:700; margin-bottom:3px; }
+    .welcome-left p  { opacity:.75; font-size:13px; }
+    .welcome-right   { text-align:right; }
+    .welcome-date    { font-size:12px; opacity:.65; margin-top:2px; }
+    .welcome-time    { font-size:26px; font-weight:800; letter-spacing:1px; }
+
+    .empty-state { text-align:center; padding:40px 20px; color:#aaa; }
+    .empty-state i { font-size:38px; margin-bottom:10px; display:block; }
+    .empty-state p  { font-size:13px; }
+</style>
 <body>
 <div th:replace="~{layout :: sidebar('dashboard')}"></div>
 
 <div class="main">
     <div class="topbar">
-        <h1>Dashboard</h1>
+        <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
         <span class="user-badge" id="userDisplay"></span>
     </div>
 
-    <div style="background: linear-gradient(135deg, #1468B1, #2A7ABF); color: white; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px;">
-        <h2 id="welcomeMsg" style="font-size: 18px; margin-bottom: 6px;">Bienvenido</h2>
-        <p style="opacity: 0.85; font-size: 13px;">Gestiona ventas, stock e inventario de las sucursales.</p>
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="welcome-left">
+            <h2 id="welcomeMsg">Bienvenido</h2>
+            <p id="welcomeSub">Sistema de Facturación</p>
+        </div>
+        <div class="welcome-right">
+            <div class="welcome-time" id="reloj">--:--</div>
+            <div class="welcome-date" id="fechaHoy"></div>
+        </div>
     </div>
 
-    <div id="cardsContainer" style="display:grid; grid-template-columns: repeat(4,1fr); gap:18px;"></div>
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-card">
+            <div class="kpi-icon blue"><i class="bi bi-receipt-cutoff"></i></div>
+            <div>
+                <div class="kpi-val" id="kpiEmitidas">—</div>
+                <div class="kpi-lbl">Facturas Emitidas</div>
+                <div class="kpi-sub" id="kpiEmitidasSub"></div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon yellow"><i class="bi bi-hourglass-split"></i></div>
+            <div>
+                <div class="kpi-val" id="kpiGuardadas">—</div>
+                <div class="kpi-lbl">Pendientes de Emisión</div>
+                <div class="kpi-sub" id="kpiGuardasSub"></div>
+            </div>
+        </div>
+        <div class="kpi-card" id="cardClientes">
+            <div class="kpi-icon green"><i class="bi bi-people-fill"></i></div>
+            <div>
+                <div class="kpi-val" id="kpiClientes">—</div>
+                <div class="kpi-lbl">Clientes</div>
+                <div class="kpi-sub">Registrados</div>
+            </div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon purple"><i class="bi bi-box-seam-fill"></i></div>
+            <div>
+                <div class="kpi-val" id="kpiProductos">—</div>
+                <div class="kpi-lbl">Productos</div>
+                <div class="kpi-sub">En catálogo</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lower section -->
+    <div class="dash-grid">
+        <!-- Recent facturas -->
+        <div class="dash-card">
+            <div class="dash-card-head">
+                <i class="bi bi-clock-history"></i> Facturas Recientes
+            </div>
+            <div id="recentList">
+                <div class="empty-state"><i class="bi bi-hourglass"></i><p>Cargando...</p></div>
+            </div>
+        </div>
+
+        <!-- Right column -->
+        <div>
+            <!-- Quick Actions -->
+            <div class="dash-card" style="margin-bottom:16px;">
+                <div class="dash-card-head"><i class="bi bi-lightning-fill"></i> Acciones Rápidas</div>
+                <div style="padding:14px;" id="quickActions"></div>
+            </div>
+            <!-- Anuladas (solo admin cuando hay) -->
+            <div class="dash-card" id="cardAnuladas" style="display:none;">
+                <div class="dash-card-head"><i class="bi bi-x-circle"></i> Facturas Anuladas</div>
+                <div style="padding:18px 20px;">
+                    <div style="font-size:30px;font-weight:800;color:#dc2626;" id="kpiAnuladas">—</div>
+                    <div style="font-size:11px;color:#aaa;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;">Total anuladas</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div th:replace="~{layout :: scripts}"></div>
 <script>
-    document.getElementById('welcomeMsg').textContent = 'Bienvenido, ' + username;
+    /* ── Reloj ── */
+    function actualizarReloj() {
+        const now = new Date();
+        document.getElementById('reloj').textContent =
+            now.toLocaleTimeString('es-EC', {hour:'2-digit', minute:'2-digit'});
+        document.getElementById('fechaHoy').textContent =
+            now.toLocaleDateString('es-EC', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+    }
+    actualizarReloj();
+    setInterval(actualizarReloj, 30000);
 
+    /* ── Bienvenida ── */
+    const rolDisplayD = { ADMIN:'Administrador', CAJERO:'Cajero / Vendedor', BODEGUERO:'Bodeguero' };
+    const sucursalNombre = localStorage.getItem('sucursal') || '';
+    document.getElementById('welcomeMsg').textContent = 'Bienvenido, ' + username;
+    document.getElementById('welcomeSub').textContent =
+        (rolDisplayD[rol] || rol) + (sucursalNombre ? ' — ' + sucursalNombre : ' — Sistema de Facturación');
+
+    /* ── Quick Actions ── */
+    function renderQuickActions() {
+        const qa = document.getElementById('quickActions');
+        let html = '';
+        if (rol === 'ADMIN' || rol === 'CAJERO') {
+            html += `<a href="/ventas" class="qa-btn primary">
+                <i class="bi bi-file-earmark-plus-fill"></i>
+                <div class="qa-btn-label">Nueva Factura<div class="qa-btn-sub">Crear y registrar venta</div></div>
+            </a>`;
+            html += `<a href="/facturas" class="qa-btn secondary">
+                <i class="bi bi-receipt" style="color:#1468B1"></i>
+                <div class="qa-btn-label">Ver Facturas<div class="qa-btn-sub">Historial completo</div></div>
+            </a>`;
+        }
+        if (rol === 'ADMIN') {
+            html += `<a href="/clientes" class="qa-btn purple">
+                <i class="bi bi-person-lines-fill"></i>
+                <div class="qa-btn-label">Clientes<div class="qa-btn-sub">Gestionar clientes</div></div>
+            </a>`;
+            html += `<a href="/productos" class="qa-btn green">
+                <i class="bi bi-box-seam-fill"></i>
+                <div class="qa-btn-label">Inventario<div class="qa-btn-sub">Stock y productos</div></div>
+            </a>`;
+        }
+        if (rol === 'BODEGUERO') {
+            html += `<a href="/productos" class="qa-btn primary">
+                <i class="bi bi-box-seam-fill"></i>
+                <div class="qa-btn-label">Ver Inventario<div class="qa-btn-sub">Gestionar stock</div></div>
+            </a>`;
+        }
+        qa.innerHTML = html;
+    }
+    renderQuickActions();
+
+    /* ── Cargar KPIs y recientes ── */
     async function cargarDatos() {
         const h = authHeaders();
+        const safeFetch = url =>
+            fetch(url, {headers: h})
+                .then(r => r.ok ? r.json() : {totalElementos:0, contenido:[]})
+                .catch(() => ({totalElementos:0, contenido:[]}));
+
+        const idSuc = (rol === 'CAJERO' || rol === 'BODEGUERO')
+            ? ('&idSucursal=' + (localStorage.getItem('idSucursal') || ''))
+            : '';
+
         try {
-            if (rol === 'ADMIN') {
-                const [v, p, c, f] = await Promise.all([
-                    fetch('/api/ventas', {headers: h}).then(r => r.json()),
-                    fetch('/api/productos', {headers: h}).then(r => r.json()),
-                    fetch('/api/clientes', {headers: h}).then(r => r.json()),
-                    fetch('/api/facturas', {headers: h}).then(r => r.json())
-                ]);
-                document.getElementById('cardsContainer').innerHTML = `
-                    <div class="card-box" style="padding:24px 28px">
-                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Ventas</div>
-                        <div style="font-size:36px;font-weight:700;color:#12274B">${v.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#aaa;margin-top:6px">Total registradas</div>
-                    </div>
-                    <div class="card-box" style="padding:24px 28px">
-                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Productos</div>
-                        <div style="font-size:36px;font-weight:700;color:#12274B">${p.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#aaa;margin-top:6px">En catálogo</div>
-                    </div>
-                    <div class="card-box" style="padding:24px 28px">
-                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Clientes</div>
-                        <div style="font-size:36px;font-weight:700;color:#12274B">${c.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#aaa;margin-top:6px">Registrados</div>
-                    </div>
-                    <div class="card-box" style="padding:24px 28px">
-                        <div style="font-size:13px;color:#4C97D2;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Facturas</div>
-                        <div style="font-size:36px;font-weight:700;color:#12274B">${f.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#aaa;margin-top:6px">Emitidas</div>
-                    </div>
-                `;
-            } else if (rol === 'CAJERO') {
-                const [v, f] = await Promise.all([
-                    fetch('/api/ventas', {headers: h}).then(r => r.json()),
-                    fetch('/api/facturas', {headers: h}).then(r => r.json())
-                ]);
-                document.getElementById('cardsContainer').innerHTML = `
-                    <div class="card-box" style="padding:22px">
-                        <div style="font-size:28px;font-weight:700;color:#12274B">${v.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#888;margin-top:6px;text-transform:uppercase">Ventas</div>
-                    </div>
-                    <div class="card-box" style="padding:22px">
-                        <div style="font-size:28px;font-weight:700;color:#12274B">${f.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#888;margin-top:6px;text-transform:uppercase">Facturas</div>
-                    </div>
-                `;
-            } else if (rol === 'BODEGUERO') {
-                const p = await fetch('/api/productos', {headers: h}).then(r => r.json());
-                document.getElementById('cardsContainer').innerHTML = `
-                    <div class="card-box" style="padding:22px">
-                        <div style="font-size:28px;font-weight:700;color:#12274B">${p.datos?.length??0}</div>
-                        <div style="font-size:12px;color:#888;margin-top:6px;text-transform:uppercase">Productos</div>
-                    </div>
-                `;
+            const [emitidas, guardadas, anuladas, clientes, productos, recientes] = await Promise.all([
+                safeFetch(`/api/facturas/paginado?estado=EMITIDA&size=1${idSuc}`),
+                safeFetch(`/api/facturas/paginado?estado=GUARDADA&size=1${idSuc}`),
+                rol === 'ADMIN' ? safeFetch(`/api/facturas/paginado?estado=ANULADA&size=1`) : Promise.resolve({totalElementos:0}),
+                rol !== 'BODEGUERO' ? safeFetch('/api/clientes/paginado?size=1') : Promise.resolve({totalElementos:0}),
+                safeFetch('/api/productos/paginado?size=1'),
+                safeFetch(`/api/facturas/paginado?estado=EMITIDA&size=6${idSuc}`)
+            ]);
+
+            const cnt = r => r?.datos?.totalElementos ?? r?.totalElementos ?? 0;
+            const list = r => r?.datos?.contenido ?? r?.contenido ?? [];
+
+            const cntEmitidas  = cnt(emitidas);
+            const cntGuardadas = cnt(guardadas);
+            const cntAnuladas  = cnt(anuladas);
+            const cntClientes  = cnt(clientes);
+            const cntProductos = cnt(productos);
+
+            document.getElementById('kpiEmitidas').textContent  = cntEmitidas;
+            document.getElementById('kpiGuardadas').textContent = cntGuardadas;
+            document.getElementById('kpiProductos').textContent = cntProductos;
+
+            if (rol !== 'BODEGUERO') {
+                document.getElementById('kpiClientes').textContent = cntClientes;
+            } else {
+                document.getElementById('cardClientes').style.display = 'none';
             }
+
+            // subtítulos
+            if (cntGuardadas > 0) {
+                document.getElementById('kpiEmitidasSub').innerHTML =
+                    `<span style="color:#d97706">${cntGuardadas} pendiente${cntGuardadas>1?'s':''}</span>`;
+                document.getElementById('kpiGuardasSub').innerHTML =
+                    `<span style="color:#d97706">Requieren emisión</span>`;
+            } else {
+                document.getElementById('kpiEmitidasSub').textContent = 'Al día';
+                document.getElementById('kpiGuardasSub').textContent = 'Sin pendientes';
+            }
+
+            if (rol === 'ADMIN' && cntAnuladas > 0) {
+                document.getElementById('cardAnuladas').style.display = 'block';
+                document.getElementById('kpiAnuladas').textContent = cntAnuladas;
+            }
+
+            // Facturas recientes
+            const items = list(recientes);
+            if (!items.length) {
+                document.getElementById('recentList').innerHTML =
+                    '<div class="empty-state"><i class="bi bi-inbox"></i><p>No hay facturas emitidas aún</p></div>';
+            } else {
+                document.getElementById('recentList').innerHTML = items.map(f => {
+                    const fecha = f.fechaEmision
+                        ? new Date(f.fechaEmision).toLocaleDateString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric'})
+                        : new Date(f.fechaFactura).toLocaleDateString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric'});
+                    return `<a href="/facturas/${f.idFactura}" class="fact-row">
+                        <div class="fact-num"><i class="bi bi-receipt" style="color:#4C97D2;margin-right:5px"></i>${f.numeroSecuencial}</div>
+                        <div class="fact-cli">${f.cliente ?? '-'}</div>
+                        <div class="fact-tot">$${parseFloat(f.total||0).toFixed(2)}</div>
+                        <div class="fact-date">${fecha}</div>
+                    </a>`;
+                }).join('');
+            }
+
         } catch(e) { console.error(e); }
     }
     cargarDatos();

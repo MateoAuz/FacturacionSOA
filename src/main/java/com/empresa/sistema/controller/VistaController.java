@@ -2,6 +2,7 @@ package com.empresa.sistema.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.servlet.view.RedirectView;
 
 @Controller
 public class VistaController {
@@ -27,8 +28,8 @@ public class VistaController {
     }
 
     @GetMapping("/inventario")
-    public String inventario() {
-        return "gestion/inventario";
+    public RedirectView inventario() {
+        return new RedirectView("/productos");
     }
 
     @GetMapping("/ventas")
@@ -39,6 +40,11 @@ public class VistaController {
     @GetMapping("/facturas")
     public String facturas() {
         return "operaciones/facturas";
+    }
+
+    @GetMapping("/facturas/{id}")
+    public String facturaDetalle() {
+        return "operaciones/factura-detalle";
     }
 
     @GetMapping("/usuarios")

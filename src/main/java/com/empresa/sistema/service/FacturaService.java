@@ -1,15 +1,27 @@
 package com.empresa.sistema.service;
 
+import com.empresa.sistema.dto.request.FacturaRequestDTO;
 import com.empresa.sistema.dto.response.FacturaResponseDTO;
-import java.util.List;
 import com.empresa.sistema.dto.response.PageResponseDTO;
+import java.util.List;
 
 public interface FacturaService {
-    FacturaResponseDTO generarFactura(Integer idVenta);
+    // ── Ciclo de vida de la factura ──────────────────────────────
+    FacturaResponseDTO crear(FacturaRequestDTO dto);
     FacturaResponseDTO buscarPorId(Integer id);
-    FacturaResponseDTO buscarPorVenta(Integer idVenta);
+    void emitirFactura(Integer id);
+    void anularFactura(Integer id);
+
+    // ── Consultas ────────────────────────────────────────────────
+    List<FacturaResponseDTO>              listarTodas();
+    List<FacturaResponseDTO>              listarPorSucursal(Integer idSucursal);
+    PageResponseDTO<FacturaResponseDTO>   buscarPaginado(String search, String campo, String estado,
+                                                         Integer idSucursal, int page, int size);
+
+    // ── Utilidades ───────────────────────────────────────────────
+    /** Devuelve el próximo número secuencial (solo vista previa; el real se asigna al crear). */
+    String proximoNumero(Integer idSucursal);
+
+    // ── PDF ──────────────────────────────────────────────────────
     byte[] generarPdf(Integer idFactura);
-    List<FacturaResponseDTO> listarTodas();
-    void anular(Integer id);
-    PageResponseDTO<FacturaResponseDTO> buscarPaginado(String search, String estado, int page, int size);
 }

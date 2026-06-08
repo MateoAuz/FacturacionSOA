@@ -1,12 +1,51 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout :: head('Facturas')}"></head>
+<style>
+    .badge-guardada { background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+    .badge-emitida  { background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+    .badge-anulada  { background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+    .acciones-cell { display:flex;gap:6px;flex-wrap:wrap;align-items:center; }
+    /* ── Modales ── */
+    .cm-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center; }
+    .cm-overlay.open { display:flex; }
+    #alertModal  { z-index:10000; }
+    .cm-box { background:white;border-radius:12px;padding:28px 32px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center; }
+    .cm-icon  { font-size:40px;margin-bottom:10px; }
+    .cm-title { font-size:15px;font-weight:700;color:#12274B;margin-bottom:8px; }
+    .cm-msg   { font-size:13px;color:#555;margin-bottom:20px;line-height:1.5; }
+    .cm-btns  { display:flex;gap:10px;justify-content:center; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 <body>
 <div th:replace="~{layout :: sidebar('facturas')}"></div>
 
+<!-- ═══════════ MODAL: ALERTA ═══════════ -->
+<div class="cm-overlay" id="alertModal">
+    <div class="cm-box">
+        <div class="cm-icon" id="alertIcon"></div>
+        <div class="cm-title">Aviso</div>
+        <div class="cm-msg" id="alertMsg"></div>
+        <div class="cm-btns"><button class="btn btn-primary" onclick="cerrarAlert()">Aceptar</button></div>
+    </div>
+</div>
+
+<!-- ═══════════ MODAL: CONFIRMAR ════════ -->
+<div class="cm-overlay" id="confirmModal">
+    <div class="cm-box">
+        <div class="cm-icon" id="confirmIcon">❓</div>
+        <div class="cm-title" id="confirmTitle">Confirmar</div>
+        <div class="cm-msg" id="confirmMsg"></div>
+        <div class="cm-btns">
+            <button class="btn" onclick="cerrarConfirm()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" id="confirmOkBtn" onclick="ejecutarConfirm()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
 <div class="main">
     <div class="topbar">
-        <h1>Facturas</h1>
+        <h1><i class="bi bi-receipt"></i> Facturas</h1>
         <span class="user-badge" id="userDisplay"></span>
     </div>
 
@@ -17,14 +56,29 @@
 
         <!-- Filtros -->
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
-            <input type="text" id="buscador" placeholder="Buscar por número o cliente..."
+            <select id="filtroCampo" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Buscar por...</option>
+                <option value="numero">Nº Factura</option>
+                <option value="cliente">Cliente</option>
+                <option value="identificacion">Identificación</option>
+            </select>
+            <div style="position:relative;flex:1;min-width:200px;">
+                <input type="text" id="buscador" placeholder="Buscar factura..."
                    oninput="resetPagina()"
-                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+                   style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;padding-right:28px;outline:none;color:#12274B"/>
+                <button id="buscadorClear" onclick="document.getElementById('buscador').value='';document.getElementById('buscadorClear').style.display='none';resetPagina()" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
+            </div>
+            <select id="filtroSucursal" onchange="resetPagina()"
+                    style="display:none;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px;">
+                <option value="">Todas las sucursales</option>
+            </select>
             <select id="filtroEstado" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
                 <option value="">Todos los estados</option>
-                <option value="EMITIDA">Emitida</option>
-                <option value="ANULADA">Anulada</option>
+                <option value="GUARDADA">Guardadas</option>
+                <option value="EMITIDA">Emitidas</option>
+                <option value="ANULADA">Anuladas</option>
             </select>
             <select id="filtroSize" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B">
@@ -39,14 +93,16 @@
             <tr>
                 <th>N° Factura</th>
                 <th>Cliente</th>
-                <th>Fecha Emisión</th>
+                <th>Sucursal</th>
+                <th>Fecha</th>
                 <th>Total</th>
                 <th>Estado</th>
                 <th>Acciones</th>
             </tr>
+            <!-- Fecha: creación siempre visible; emisión con hora para EMITIDA -->
             </thead>
             <tbody id="tablaFacturas">
-            <tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
             </tbody>
         </table>
 
@@ -59,22 +115,62 @@
 
 <div th:replace="~{layout :: scripts}"></div>
 <script>
-    if (rol === 'BODEGUERO') window.location.href = '/dashboard';
+    if (rol === 'BODEGUERO') window.location.href = '/inventario';
+
+    // Cargar sucursales y mostrar filtro solo para ADMIN
+    if (rol === 'ADMIN') {
+        document.getElementById('filtroSucursal').style.display = 'block';
+        fetch('/api/sucursales', {headers: authHeaders()})
+            .then(r => r.json())
+            .then(data => {
+                const sucs = data.datos ?? data ?? [];
+                const sel = document.getElementById('filtroSucursal');
+                sucs.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.idSucursal;
+                    opt.textContent = s.nombre;
+                    sel.appendChild(opt);
+                });
+            }).catch(() => {});
+    }
 
     let paginaActual = 0;
     let totalPaginas = 0;
+
+    /* ── Formato de fechas ── */
+    function fmtFecha(iso) {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
+    }
+    function fmtFechaHora(iso) {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'})
+             + ' '
+             + d.toLocaleTimeString('es-EC', {hour:'2-digit', minute:'2-digit'});
+    }
 
     function resetPagina() { paginaActual = 0; cargarDatos(); }
 
     async function cargarDatos() {
         const h = authHeaders();
         const search = document.getElementById('buscador').value;
+        const campo = document.getElementById('filtroCampo').value;
         const estado = document.getElementById('filtroEstado').value;
         const size = document.getElementById('filtroSize').value;
 
         let url = `/api/facturas/paginado?page=${paginaActual}&size=${size}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (campo) url += `&campo=${encodeURIComponent(campo)}`;
         if (estado) url += `&estado=${estado}`;
+        if (rol === 'CAJERO') {
+            const idSucursal = localStorage.getItem('idSucursal');
+            if (idSucursal) url += `&idSucursal=${idSucursal}`;
+        } else if (rol === 'ADMIN') {
+            const filtroSuc = document.getElementById('filtroSucursal').value;
+            if (filtroSuc) url += `&idSucursal=${filtroSuc}`;
+        }
 
         try {
             const res = await fetch(url, {headers: h});
@@ -87,26 +183,45 @@
 
             if (!page.contenido.length) {
                 document.getElementById('tablaFacturas').innerHTML =
-                    '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:30px">No se encontraron facturas</td></tr>';
+                    '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">No se encontraron facturas</td></tr>';
                 document.getElementById('controlesPagina').innerHTML = '';
                 return;
             }
 
-            document.getElementById('tablaFacturas').innerHTML = page.contenido.map(f => `
-                <tr>
-                    <td>${f.numeroSecuencial}</td>
+            document.getElementById('tablaFacturas').innerHTML = page.contenido.map(f => {
+                const badgeClass = { GUARDADA: 'badge-guardada', EMITIDA: 'badge-emitida', ANULADA: 'badge-anulada' }[f.estado] || 'badge-danger';
+                const estadoLabel = { GUARDADA: 'Guardada', EMITIDA: 'Emitida', ANULADA: 'Anulada' }[f.estado] || f.estado;
+
+                let acciones = `<a href="/facturas/${f.idFactura}" class="btn btn-primary btn-sm"><i class="bi bi-eye-fill"></i> Ver</a>`;
+
+                if (f.estado === 'GUARDADA') {
+                    acciones += ` <button class="btn btn-sm" onclick="emitirFactura(${f.idFactura})"
+                        style="background:#d1fae5;color:#065f46;font-weight:700"><i class="bi bi-send-fill"></i> Emitir</button>`;
+                }
+                if (f.estado === 'EMITIDA') {
+                    acciones += ` <button class="btn btn-sm" onclick="descargarPdf(${f.idFactura})"
+                        style="background:#fef3c7;color:#92400e;font-weight:700"><i class="bi bi-file-earmark-pdf-fill"></i> PDF</button>`;
+                    acciones += ` <button class="btn btn-danger btn-sm" onclick="anularFactura(${f.idFactura})"><i class="bi bi-x-circle-fill"></i> Anular</button>`;
+                }
+
+                // Columna fecha: siempre muestra creación; si EMITIDA agrega hora de emisión
+                let fechaCell = `<div style="font-size:12px">${fmtFecha(f.fechaFactura)}</div>`;
+                if (f.estado === 'EMITIDA' && f.fechaEmision) {
+                    fechaCell += `<div style="font-size:11px;color:#059669;margin-top:2px;"><i class="bi bi-check-circle-fill"></i> ${fmtFechaHora(f.fechaEmision)}</div>`;
+                } else if (f.estado === 'ANULADA') {
+                    fechaCell += `<div style="font-size:11px;color:#991b1b;margin-top:2px;"><i class="bi bi-x-circle-fill"></i> Anulada</div>`;
+                }
+
+                return `<tr id="fila-${f.idFactura}">
+                    <td><strong>${f.numeroSecuencial}</strong></td>
                     <td>${f.cliente ?? '-'}</td>
-                    <td>${f.fechaEmision ? new Date(f.fechaEmision).toLocaleDateString('es-EC') : '-'}</td>
-                    <td>${f.total ? '$' + parseFloat(f.total).toFixed(2) : '-'}</td>
-                    <td><span class="badge ${f.estado === 'EMITIDA' ? 'badge-success' : 'badge-danger'}">${f.estado}</span></td>
-                    <td style="display:flex;gap:6px;">
-                        <button class="btn btn-primary btn-sm" onclick="descargarPdf(${f.idFactura})">PDF</button>
-                        ${f.estado === 'EMITIDA' ? `
-                        <button class="btn btn-danger btn-sm" onclick="anularFactura(${f.idFactura})">Anular</button>
-                        ` : ''}
-                    </td>
-                </tr>
-            `).join('');
+                    <td style="font-size:12px">${f.sucursal ?? '-'}</td>
+                    <td>${fechaCell}</td>
+                    <td><strong>${f.total ? '$' + parseFloat(f.total).toFixed(2) : '-'}</strong></td>
+                    <td><span class="${badgeClass}">${estadoLabel}</span></td>
+                    <td><div class="acciones-cell">${acciones}</div></td>
+                </tr>`;
+            }).join('');
 
             renderPaginacion();
         } catch(e) { console.error(e); }
@@ -114,56 +229,126 @@
 
     function renderPaginacion() {
         const cont = document.getElementById('controlesPagina');
-        let html = `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
-            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+        let html = `<button class="btn btn-sm" onclick="irPagina(${paginaActual-1})"
+            ${paginaActual===0?'disabled style="opacity:0.4"':''}
             style="background:#f0f4f8;color:#333">Anterior</button>`;
         for (let i = 0; i < totalPaginas; i++) {
-            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+            if (totalPaginas<=7||Math.abs(i-paginaActual)<=2)
                 html += `<button class="btn btn-sm" onclick="irPagina(${i})"
-                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
-            }
+                    style="background:${i===paginaActual?'#1468B1':'#f0f4f8'};color:${i===paginaActual?'white':'#333'}">${i+1}</button>`;
         }
-        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
-            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual+1})"
+            ${paginaActual>=totalPaginas-1?'disabled style="opacity:0.4"':''}
             style="background:#f0f4f8;color:#333">Siguiente</button>`;
         cont.innerHTML = html;
     }
 
-    function irPagina(p) {
-        if (p < 0 || p >= totalPaginas) return;
-        paginaActual = p;
-        cargarDatos();
+    function irPagina(p) { if(p>=0&&p<totalPaginas){paginaActual=p;cargarDatos();} }
+
+    /* ── Modales helper ── */
+    const _iconMap = {
+        success: '<i class="bi bi-check-circle-fill" style="color:#059669;font-size:36px"></i>',
+        error:   '<i class="bi bi-x-circle-fill" style="color:#dc2626;font-size:36px"></i>',
+        warning: '<i class="bi bi-exclamation-triangle-fill" style="color:#d97706;font-size:36px"></i>',
+        info:    '<i class="bi bi-info-circle-fill" style="color:#1468B1;font-size:36px"></i>',
+        emit:    '<i class="bi bi-send-fill" style="color:#1468B1;font-size:36px"></i>',
+        anular:  '<i class="bi bi-exclamation-triangle-fill" style="color:#d97706;font-size:36px"></i>',
+        confirm: '<i class="bi bi-question-circle-fill" style="color:#6366f1;font-size:36px"></i>',
+    };
+    function mostrarAlerta(msg, type) {
+        document.getElementById('alertIcon').innerHTML = _iconMap[type] || _iconMap['info'];
+        document.getElementById('alertMsg').textContent = msg;
+        document.getElementById('alertModal').classList.add('open');
+    }
+    function cerrarAlert() { document.getElementById('alertModal').classList.remove('open'); }
+
+    let _confirmCb = null;
+    function mostrarConfirm(title, msg, iconType, okLabel, cb) {
+        document.getElementById('confirmIcon').innerHTML = _iconMap[iconType] || _iconMap['confirm'];
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMsg').textContent = msg;
+        document.getElementById('confirmOkBtn').textContent = okLabel || 'Confirmar';
+        _confirmCb = cb;
+        document.getElementById('confirmModal').classList.add('open');
+    }
+    function cerrarConfirm() { document.getElementById('confirmModal').classList.remove('open'); _confirmCb = null; }
+    function ejecutarConfirm() { const cb = _confirmCb; cerrarConfirm(); if (cb) cb(); }
+
+    /* ── Acciones factura ── */
+    function emitirFactura(id) {
+        mostrarConfirm(
+            '¿Emitir esta factura?',
+            'Se enviará el PDF al correo del cliente. Una vez emitida no se puede regresar a borrador.',
+            'emit', 'Emitir',
+            async () => {
+                // Mostrar loading en la celda de acciones de esa fila
+                const fila = document.getElementById(`fila-${id}`);
+                if (fila) {
+                    const celdaAcciones = fila.querySelector('.acciones-cell');
+                    if (celdaAcciones) {
+                        celdaAcciones.innerHTML = `
+                            <span style="display:flex;align-items:center;gap:7px;font-size:12px;
+                                         color:#1468B1;font-weight:600;padding:4px 8px;
+                                         background:#e8f4fd;border-radius:6px;">
+                                <i class="bi bi-send-fill"
+                                   style="animation:spin 1s linear infinite;font-size:13px"></i>
+                                Enviando...
+                            </span>`;
+                    }
+                }
+                const h = authHeaders();
+                try {
+                    const res = await fetch(`/api/facturas/${id}/emitir`, {method:'POST', headers:h});
+                    if (res.ok) {
+                        await cargarDatos();
+                        mostrarAlerta('Factura emitida correctamente. El correo se envió al cliente.', 'success');
+                    } else {
+                        const err = await res.json();
+                        await cargarDatos(); // restaurar botones
+                        mostrarAlerta(err.mensaje ?? 'Error al emitir', 'error');
+                    }
+                } catch(e) {
+                    await cargarDatos();
+                    mostrarAlerta('Error de conexión', 'error');
+                }
+            }
+        );
     }
 
     async function descargarPdf(id) {
         const h = authHeaders();
         try {
-            const res = await fetch(`/api/facturas/${id}/pdf`, {headers: h});
+            const res = await fetch(`/api/facturas/${id}/pdf`, {headers:h});
             if (res.ok) {
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `factura-${id}.pdf`;
-                a.click();
+                a.href = url; a.download = `factura-${id}.pdf`; a.click();
                 window.URL.revokeObjectURL(url);
-            } else {
-                alert('Error al generar el PDF');
-            }
-        } catch(e) { alert('Error de conexión'); }
+            } else { mostrarAlerta('Error al generar el PDF', 'error'); }
+        } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
     }
 
-    async function anularFactura(id) {
-        if (!confirm('¿Está seguro de anular esta factura?')) return;
-        const h = authHeaders();
-        try {
-            const res = await fetch(`/api/facturas/${id}/anular`, {method: 'PATCH', headers: h});
-            if (res.ok) cargarDatos();
-            else alert('Error al anular la factura');
-        } catch(e) { alert('Error de conexión'); }
+    function anularFactura(id) {
+        mostrarConfirm(
+            '¿Anular esta factura?',
+            'Esta acción no se puede deshacer y devolverá el stock al inventario.',
+            'anular', 'Anular',
+            async () => {
+                const h = authHeaders();
+                try {
+                    const res = await fetch(`/api/facturas/${id}/anular`, {method:'PATCH', headers:h});
+                    if (res.ok) cargarDatos();
+                    else { mostrarAlerta('Error al anular la factura', 'error'); }
+                } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
+            }
+        );
     }
 
     cargarDatos();
+    document.getElementById('buscador').addEventListener('input', function() {
+        document.getElementById('buscadorClear').style.display = this.value ? 'block' : 'none';
+    });
 </script>
 </body>
 </html>

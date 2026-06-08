@@ -47,10 +47,16 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     public UsuarioResponseDTO crear(UsuarioRequestDTO dto) {
+        if (usuarioRepository.findByUsername(dto.getUsername()).isPresent()) {
+            throw new RuntimeException(
+                "Ya existe un usuario con el nombre de usuario '" + dto.getUsername() + "'. Elige otro username.");
+        }
         Rol rol = rolRepository.findById(dto.getIdRol())
                 .orElseThrow(() -> new RuntimeException("Rol no encontrado"));
-        Sucursal sucursal = sucursalRepository.findById(dto.getIdSucursal())
-                .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"));
+        Sucursal sucursal = (dto.getIdSucursal() != null)
+                ? sucursalRepository.findById(dto.getIdSucursal())
+                        .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"))
+                : null; // ADMIN no tiene sucursal
         Usuario u = Usuario.builder()
                 .nombre(dto.getNombre())
                 .apellido(dto.getApellido())
@@ -70,8 +76,10 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + id));
         Rol rol = rolRepository.findById(dto.getIdRol())
                 .orElseThrow(() -> new RuntimeException("Rol no encontrado"));
-        Sucursal sucursal = sucursalRepository.findById(dto.getIdSucursal())
-                .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"));
+        Sucursal sucursal = (dto.getIdSucursal() != null)
+                ? sucursalRepository.findById(dto.getIdSucursal())
+                        .orElseThrow(() -> new RuntimeException("Sucursal no encontrada"))
+                : null; // ADMIN no tiene sucursal
         u.setNombre(dto.getNombre());
         u.setApellido(dto.getApellido());
         u.setCorreo(dto.getCorreo());
@@ -99,10 +107,11 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
-    public PageResponseDTO<UsuarioResponseDTO> buscarPaginado(String search, Integer idRol, int page, int size) {
+    public PageResponseDTO<UsuarioResponseDTO> buscarPaginado(String search, String campo, Integer idRol, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("nombre").ascending());
         Page<Usuario> resultado = usuarioRepository.buscarPaginado(
                 (search != null && !search.isBlank()) ? search : null,
+                (campo != null && !campo.isBlank()) ? campo : null,
                 idRol,
                 pageable);
         return PageResponseDTO.<UsuarioResponseDTO>builder()
@@ -124,7 +133,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .username(u.getUsername())
                 .correo(u.getCorreo())
                 .rol(u.getRol().getNombre())
-                .sucursal(u.getSucursal().getNombre())
+                .sucursal(u.getSucursal() != null ? u.getSucursal().getNombre() : null)
                 .activo(u.getActivo())
                 .fechaRegistro(u.getFechaRegistro())
                 .build();

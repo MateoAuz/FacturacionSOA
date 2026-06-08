@@ -12,7 +12,9 @@ public interface ProductoService {
     ProductoResponseDTO crear(ProductoRequestDTO dto);
     ProductoResponseDTO actualizar(Integer id, ProductoRequestDTO dto);
     void eliminar(Integer id);
+    ProductoResponseDTO toggleActivo(Integer id);
     List<ProductoResponseDTO> buscarPorCategoria(Integer idCategoria);
     List<ProductoResponseDTO> buscarPorNombre(String nombre);
-    PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, Integer idCategoria, int page, int size);
+    PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, String campo, Integer idCategoria, int page, int size);
+    PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, String campo, Integer idCategoria, Integer idSucursal, int page, int size);
 }

@@ -15,4 +15,7 @@ public class ProductoResponseDTO {
     private Boolean activo;
     private String tipoSri;
     private LocalDateTime fechaRegistro;
+    /** Solo se rellena cuando la consulta filtra por sucursal */
+    private Integer stockDisponible;
+    private String categoriaNombre;
 }

@@ -35,11 +35,14 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
 
     private static final String[] PUBLIC_PATHS = {
+            // Autenticación (único endpoint de API público)
             "/api/auth/**",
+            // Swagger/OpenAPI (solo para desarrollo — restringir en producción)
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/api-docs/**",
             "/v3/api-docs/**",
+            // Vistas HTML (Thymeleaf — el HTML es público, los datos están en /api/ protegidos)
             "/login",
             "/",
             "/dashboard",
@@ -47,12 +50,14 @@ public class SecurityConfig {
             "/clientes",
             "/ventas",
             "/facturas",
+            "/facturas/**",
             "/inventario",
+            "/usuarios",
+            // Recursos estáticos
             "/css/**",
             "/js/**",
-            "/favicon.ico",
-            "/usuarios",
-            "/api/roles/**"
+            "/favicon.ico"
+            // NOTA: /api/roles/** eliminado — requiere autenticación
     };
 
     @Bean
@@ -62,10 +67,16 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_PATHS).permitAll()
-                        // Inventario: ADMIN y BODEGUERO
-                        .requestMatchers("/api/inventario/**").hasAnyRole("ADMIN", "BODEGUERO")
-                        // Ventas y facturas: ADMIN y CAJERO
-                        .requestMatchers("/api/ventas/**", "/api/facturas/**").hasAnyRole("ADMIN", "CAJERO")
+                        // Stock: lectura permitida a CAJERO
+                        .requestMatchers(HttpMethod.GET, "/api/stock/**").hasAnyRole("ADMIN", "BODEGUERO", "CAJERO")
+                        // Stock: escritura solo ADMIN y BODEGUERO
+                        .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "BODEGUERO")
+                        // PDF de factura: público
+                        .requestMatchers(HttpMethod.GET, "/api/facturas/*/pdf").permitAll()
+                        // Facturas: ADMIN y CAJERO
+                        .requestMatchers("/api/facturas/**").hasAnyRole("ADMIN", "CAJERO")
+                        // Solicitudes de stock inter-sucursal
+                        .requestMatchers("/api/solicitudes-stock/**").hasAnyRole("ADMIN", "CAJERO", "BODEGUERO")
                         // Todo lo demas requiere autenticacion
                         .anyRequest().authenticated()
                 )

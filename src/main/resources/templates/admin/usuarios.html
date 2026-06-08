@@ -1,26 +1,78 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout :: head('Usuarios')}"></head>
+<style>
+    /* ── Badges de rol ── */
+    .badge-rol-admin     { background:#1e3a8a;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.4px; }
+    .badge-rol-cajero    { background:#065f46;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.4px; }
+    .badge-rol-bodeguero { background:#92400e;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.4px; }
+
+    /* ── Modal mejorado ── */
+    .modal-xl { max-width:620px!important; }
+    .modal-section { background:#f8fafc;border-radius:8px;padding:16px;margin-bottom:14px; }
+    .modal-section-title {
+        font-size:11px;font-weight:700;color:#4C97D2;
+        text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;
+    }
+    .grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+    .form-group { margin-bottom:0; }
+    .form-group label {
+        display:block;font-size:11px;font-weight:700;color:#12274B;
+        margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;
+    }
+    .form-group input,
+    .form-group select {
+        width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;
+        border-radius:7px;font-size:13px;outline:none;color:#12274B;
+        transition:border-color .2s;box-sizing:border-box;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color:#1468B1; }
+    .form-group input.error { border-color:#ef4444; }
+    .error-msg { display:block;font-size:11px;color:#ef4444;margin-top:3px;min-height:15px; }
+
+    /* ── Fila de tabla hover ── */
+    #tablaUsuarios tr:hover { background:#f0f7ff; }
+
+    /* ── Alert modal ── */
+    .cm-ov { display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center; }
+    .cm-ov.open { display:flex; }
+    .cm-bx { background:#fff;border-radius:14px;padding:32px 28px;max-width:380px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18); }
+    .cm-ico { font-size:38px;margin-bottom:10px; }
+    .cm-ttl { font-size:15px;font-weight:700;color:#12274B;margin-bottom:6px; }
+    .cm-sub { font-size:13px;color:#555;margin-bottom:20px; }
+    .cm-row { display:flex;gap:10px;justify-content:center; }
+    .cm-row button { padding:9px 24px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer; }
+</style>
 <body>
 <div th:replace="~{layout :: sidebar('usuarios')}"></div>
 
 <div class="main">
     <div class="topbar">
-        <h1>Usuarios</h1>
+        <h1><i class="bi bi-people-fill"></i> Usuarios</h1>
         <span class="user-badge" id="userDisplay"></span>
     </div>
 
     <div class="card-box">
         <div class="card-box-header">
             <h2>Listado de Usuarios</h2>
-            <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo Usuario</button>
+            <button class="btn btn-primary" onclick="abrirModal()"><i class="bi bi-person-plus-fill"></i> Nuevo Usuario</button>
         </div>
 
-        <!-- Filtros -->
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
-            <input type="text" id="buscador" placeholder="Buscar por nombre, usuario o correo..."
+            <select id="filtroCampo" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Buscar por...</option>
+                <option value="nombre">Nombre</option>
+                <option value="username">Usuario</option>
+                <option value="correo">Correo</option>
+            </select>
+            <div style="position:relative;flex:1;min-width:200px;">
+                <input type="text" id="buscador" placeholder="Buscar usuario..."
                    oninput="resetPagina()"
-                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+                   style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;padding-right:28px;outline:none;color:#12274B"/>
+                <button id="buscadorClear" onclick="document.getElementById('buscador').value='';document.getElementById('buscadorClear').style.display='none';resetPagina()" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
+            </div>
             <select id="filtroRol" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
                 <option value="">Todos los roles</option>
@@ -58,72 +110,207 @@
 
 <!-- Modal -->
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
-        <h3 id="modalTitulo">Nuevo Usuario</h3>
+    <div class="modal modal-xl">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+            <h3 id="modalTitulo" style="margin:0;font-size:17px;color:#12274B;">Nuevo Usuario</h3>
+            <button onclick="cerrarModal()" style="background:none;border:none;cursor:pointer;font-size:22px;color:#888;line-height:1;">×</button>
+        </div>
         <input type="hidden" id="usuarioId"/>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Nombre</label>
-                <input type="text" id="nombre" placeholder="Nombre"/>
-            </div>
-            <div class="form-group">
-                <label>Apellido</label>
-                <input type="text" id="apellido" placeholder="Apellido"/>
-            </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="username" placeholder="usuario123"/>
-            </div>
-            <div class="form-group">
-                <label>Correo</label>
-                <input type="email" id="correo" placeholder="correo@ejemplo.com"/>
-            </div>
-        </div>
-        <div class="form-group">
-            <label id="passwordLabel">Contraseña</label>
-            <input type="password" id="password" placeholder="Mínimo 6 caracteres"/>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Rol</label>
-                <select id="rol"></select>
-            </div>
-            <div class="form-group">
-                <label>Sucursal</label>
-                <select id="sucursal"></select>
+
+        <!-- Datos personales -->
+        <div class="modal-section">
+            <div class="modal-section-title">Datos Personales</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="nombre" placeholder="NOMBRE" maxlength="30"
+                           oninput="this.value=this.value.toUpperCase();limpiarError('errNombre')"
+                           onblur="validarRequerido('nombre','errNombre','Nombre requerido')"/>
+                    <span class="error-msg" id="errNombre"></span>
+                </div>
+                <div class="form-group">
+                    <label>Apellido</label>
+                    <input type="text" id="apellido" placeholder="APELLIDO" maxlength="30"
+                           oninput="this.value=this.value.toUpperCase();limpiarError('errApellido')"
+                           onblur="validarRequerido('apellido','errApellido','Apellido requerido')"/>
+                    <span class="error-msg" id="errApellido"></span>
+                </div>
             </div>
         </div>
-        <div class="modal-footer">
+
+        <!-- Acceso -->
+        <div class="modal-section">
+            <div class="modal-section-title">Acceso al Sistema</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="usuario123" maxlength="30"
+                           oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9._]/g,'');limpiarError('errUsername')"
+                           onblur="validarRequerido('username','errUsername','Username requerido')"/>
+                    <span class="error-msg" id="errUsername"></span>
+                </div>
+                <div class="form-group">
+                    <label>Correo</label>
+                    <input type="email" id="correo" placeholder="correo@ejemplo.com" maxlength="80"
+                           oninput="this.value=this.value.toLowerCase();limpiarError('errCorreo')"
+                           onblur="validarCorreo()"/>
+                    <span class="error-msg" id="errCorreo"></span>
+                </div>
+            </div>
+            <div class="form-group" style="margin-top:14px;">
+                <label id="passwordLabel">Contraseña</label>
+                <input type="password" id="password" placeholder="Mínimo 6 caracteres" maxlength="100"
+                       oninput="limpiarError('errPassword')"
+                       onblur="validarPassword()"/>
+                <span class="error-msg" id="errPassword"></span>
+            </div>
+        </div>
+
+        <!-- Rol y sucursal -->
+        <div class="modal-section">
+            <div class="modal-section-title">Asignación</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select id="rol" onchange="toggleSucursal()"></select>
+                </div>
+                <div class="form-group" id="seccionSucursal">
+                    <label>Sucursal <span style="color:#dc2626">*</span></label>
+                    <select id="sucursal"></select>
+                    <span class="error-msg" id="errSucursal"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top:8px;">
             <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarUsuario()">Guardar</button>
+            <button class="btn btn-primary" id="btnGuardar" onclick="guardarUsuario()"><i class="bi bi-floppy2-fill"></i> Guardar</button>
         </div>
+    </div>
+</div>
+
+<!-- Alert modal -->
+<div class="cm-ov" id="alertModal">
+    <div class="cm-bx">
+        <div class="cm-ico" id="alertIcon"></div>
+        <div class="cm-ttl" id="alertMsg"></div>
+        <div class="cm-row"><button onclick="cerrarAlerta()" style="background:#1468B1;color:#fff">Aceptar</button></div>
     </div>
 </div>
 
 <div th:replace="~{layout :: scripts}"></div>
 <script>
-    if (rol !== 'ADMIN') window.location.href = '/dashboard';
+    if (rol !== 'ADMIN') window.location.href = rol === 'BODEGUERO' ? '/inventario' : '/ventas';
+
+    // ── Alert modal ───────────────────────────────────────────────
+    const _usrIconMap = {
+        success: '<i class="bi bi-check-circle-fill" style="color:#059669;font-size:36px"></i>',
+        error:   '<i class="bi bi-x-circle-fill" style="color:#dc2626;font-size:36px"></i>',
+        warning: '<i class="bi bi-exclamation-triangle-fill" style="color:#d97706;font-size:36px"></i>',
+        info:    '<i class="bi bi-info-circle-fill" style="color:#1468B1;font-size:36px"></i>',
+    };
+    function mostrarAlerta(msg, tipo) {
+        document.getElementById('alertIcon').innerHTML = _usrIconMap[tipo] || _usrIconMap['info'];
+        document.getElementById('alertMsg').textContent  = msg;
+        document.getElementById('alertModal').classList.add('open');
+    }
+    function cerrarAlerta() { document.getElementById('alertModal').classList.remove('open'); }
+
+    // ── Sucursal visibility ────────────────────────────────────────
+    function toggleSucursal() {
+        const rolSel   = document.getElementById('rol');
+        const rolNombre = rolSel.options[rolSel.selectedIndex]?.text || '';
+        const necesita  = rolNombre === 'CAJERO' || rolNombre === 'BODEGUERO';
+        document.getElementById('seccionSucursal').style.display = necesita ? '' : 'none';
+        if (!necesita) {
+            document.getElementById('errSucursal').textContent = '';
+            document.getElementById('sucursal').classList.remove('error');
+        }
+    }
 
     let paginaActual = 0;
     let totalPaginas = 0;
     let roles = [];
+    let esEdicion = false;
 
     function resetPagina() { paginaActual = 0; cargarDatos(); }
 
+    // ── Helpers de validación ──────────────────────────────────────
+    function limpiarError(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '';
+        const campo = id.replace('err','').toLowerCase();
+        const input = document.getElementById(campo);
+        if (input) input.classList.remove('error');
+    }
+
+    function setError(inputId, errId, msg) {
+        document.getElementById(errId).textContent = msg;
+        document.getElementById(inputId).classList.add('error');
+    }
+
+    function validarRequerido(inputId, errId, msg) {
+        if (!document.getElementById(inputId).value.trim()) { setError(inputId, errId, msg); return false; }
+        return true;
+    }
+
+    function validarCorreo() {
+        const val = document.getElementById('correo').value.trim();
+        if (!val) return true; // correo es opcional
+        const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+        if (!ok) { setError('correo','errCorreo','Correo inválido'); return false; }
+        return true;
+    }
+
+    function validarPassword() {
+        if (esEdicion) return true; // en edición es opcional
+        const val = document.getElementById('password').value;
+        if (val.length < 6) { setError('password','errPassword','Mínimo 6 caracteres'); return false; }
+        return true;
+    }
+
+    function formularioValido() {
+        let ok = true;
+        if (!validarRequerido('nombre',   'errNombre',   'Nombre requerido'))   ok = false;
+        if (!validarRequerido('apellido', 'errApellido', 'Apellido requerido')) ok = false;
+        if (!validarRequerido('username', 'errUsername', 'Username requerido')) ok = false;
+        if (!validarCorreo())  ok = false;
+        if (!esEdicion && !validarPassword()) ok = false;
+        // Sucursal requerida solo para CAJERO/BODEGUERO
+        if (document.getElementById('seccionSucursal').style.display !== 'none') {
+            if (!document.getElementById('sucursal').value) {
+                setError('sucursal', 'errSucursal', 'Sucursal requerida'); ok = false;
+            }
+        }
+        return ok;
+    }
+
+    // ── Badge de rol ───────────────────────────────────────────────
+    function badgeRol(nombreRol) {
+        const map = {
+            'ADMIN':     'badge-rol-admin',
+            'CAJERO':    'badge-rol-cajero',
+            'BODEGUERO': 'badge-rol-bodeguero'
+        };
+        const cls = map[nombreRol] ?? 'badge-rol-cajero';
+        return `<span class="${cls}">${nombreRol}</span>`;
+    }
+
+    // ── Carga de datos ─────────────────────────────────────────────
     async function cargarDatos() {
         const h = authHeaders();
-        const search = document.getElementById('buscador').value;
-        const idRol = document.getElementById('filtroRol').value;
-        const size = document.getElementById('filtroSize').value;
+        const search    = document.getElementById('buscador').value;
+        const campo     = document.getElementById('filtroCampo').value;
+        const idRol     = document.getElementById('filtroRol').value;
+        const size      = document.getElementById('filtroSize').value;
 
         let url = `/api/usuarios/paginado?page=${paginaActual}&size=${size}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
-        if (idRol) url += `&idRol=${idRol}`;
+        if (campo)  url += `&campo=${encodeURIComponent(campo)}`;
+        if (idRol)  url += `&idRol=${idRol}`;
 
         try {
-            const res = await fetch(url, {headers: h});
+            const res  = await fetch(url, {headers: h});
             const data = await res.json();
             const page = data.datos ?? data;
             totalPaginas = page.totalPaginas;
@@ -140,15 +327,18 @@
 
             document.getElementById('tablaUsuarios').innerHTML = page.contenido.map(u => `
                 <tr>
-                    <td>${u.nombre} ${u.apellido}</td>
-                    <td>${u.username}</td>
-                    <td>${u.correo ?? '-'}</td>
-                    <td><span class="badge badge-success">${u.rol}</span></td>
-                    <td>${u.sucursal}</td>
+                    <td><strong>${u.nombre} ${u.apellido}</strong></td>
+                    <td style="font-family:monospace;font-size:13px;color:#555">${u.username}</td>
+                    <td style="font-size:12px;color:#666">${u.correo ?? '-'}</td>
+                    <td>${badgeRol(u.rol)}</td>
+                    <td>${u.sucursal ?? '—'}</td>
                     <td><span class="badge ${u.activo ? 'badge-success' : 'badge-danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
                     <td style="display:flex;gap:6px;">
-                        <button class="btn btn-primary btn-sm" onclick="editarUsuario(${u.idUsuario})">Editar</button>
-                        <button class="btn btn-danger btn-sm" onclick="cambiarEstado(${u.idUsuario}, ${!u.activo})">${u.activo ? 'Desactivar' : 'Activar'}</button>
+                        <button class="btn btn-primary btn-sm" onclick="editarUsuario(${u.idUsuario})"><i class="bi bi-pencil-fill"></i> Editar</button>
+                        <button class="btn btn-${u.activo ? 'danger' : 'success'} btn-sm"
+                                onclick="cambiarEstado(${u.idUsuario}, ${!u.activo})">
+                            ${u.activo ? '<i class="bi bi-toggle-off"></i> Desactivar' : '<i class="bi bi-toggle-on"></i> Activar'}
+                        </button>
                     </td>
                 </tr>
             `).join('');
@@ -174,16 +364,12 @@
         cont.innerHTML = html;
     }
 
-    function irPagina(p) {
-        if (p < 0 || p >= totalPaginas) return;
-        paginaActual = p;
-        cargarDatos();
-    }
+    function irPagina(p) { if (p >= 0 && p < totalPaginas) { paginaActual = p; cargarDatos(); } }
 
     async function cargarFiltros() {
         const h = authHeaders();
         const [rolesRes, sucsRes] = await Promise.all([
-            fetch('/api/roles', {headers: h}).then(r => r.json()),
+            fetch('/api/roles',      {headers: h}).then(r => r.json()),
             fetch('/api/sucursales', {headers: h}).then(r => r.json())
         ]);
 
@@ -194,103 +380,147 @@
         document.getElementById('filtroRol').innerHTML = '<option value="">Todos los roles</option>' + rolOpts;
         document.getElementById('rol').innerHTML = rolOpts;
 
-        document.getElementById('sucursal').innerHTML = sucursales.map(s =>
-            `<option value="${s.idSucursal}">${s.nombre}</option>`).join('');
+        document.getElementById('sucursal').innerHTML = sucursales
+            .map(s => `<option value="${s.idSucursal}">${s.nombre}</option>`).join('');
     }
 
+    // ── Modal ──────────────────────────────────────────────────────
     function abrirModal(limpiar = true) {
         if (limpiar) {
+            esEdicion = false;
             document.getElementById('modalTitulo').textContent = 'Nuevo Usuario';
-            document.getElementById('usuarioId').value = '';
-            document.getElementById('nombre').value = '';
-            document.getElementById('apellido').value = '';
-            document.getElementById('username').value = '';
-            document.getElementById('correo').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('passwordLabel').textContent = 'Contraseña';
+            document.getElementById('usuarioId').value   = '';
+            document.getElementById('nombre').value      = '';
+            document.getElementById('apellido').value    = '';
+            document.getElementById('username').value    = '';
             document.getElementById('username').disabled = false;
+            document.getElementById('correo').value      = '';
+            document.getElementById('password').value    = '';
+            document.getElementById('passwordLabel').textContent = 'Contraseña';
+            ['errNombre','errApellido','errUsername','errCorreo','errPassword','errSucursal'].forEach(id => {
+                document.getElementById(id).textContent = '';
+            });
+            ['nombre','apellido','username','correo','password','sucursal'].forEach(id => {
+                document.getElementById(id).classList.remove('error');
+            });
+            toggleSucursal();
         }
         document.getElementById('modalOverlay').classList.add('open');
     }
 
-    function cerrarModal() {
-        document.getElementById('modalOverlay').classList.remove('open');
-    }
+    function cerrarModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
     async function editarUsuario(id) {
-        const h = authHeaders();
+        const h   = authHeaders();
         const res = await fetch(`/api/usuarios/${id}`, {headers: h});
         const data = await res.json();
-        const u = data.datos ?? data;
+        const u   = data.datos ?? data;
 
+        esEdicion = true;
         document.getElementById('modalTitulo').textContent = 'Editar Usuario';
-        document.getElementById('usuarioId').value = u.idUsuario;
-        document.getElementById('nombre').value = u.nombre;
-        document.getElementById('apellido').value = u.apellido;
-        document.getElementById('username').value = u.username;
+        document.getElementById('usuarioId').value   = u.idUsuario;
+        document.getElementById('nombre').value      = u.nombre;
+        document.getElementById('apellido').value    = u.apellido;
+        document.getElementById('username').value    = u.username;
         document.getElementById('username').disabled = true;
-        document.getElementById('correo').value = u.correo ?? '';
-        document.getElementById('password').value = '';
+        document.getElementById('correo').value      = u.correo ?? '';
+        document.getElementById('password').value    = '';
         document.getElementById('passwordLabel').textContent = 'Nueva Contraseña (dejar vacío para no cambiar)';
 
+        // Seleccionar rol
         const rolOpts = document.getElementById('rol').options;
         for (let i = 0; i < rolOpts.length; i++) {
-            if (rolOpts[i].text === u.rol) {
-                document.getElementById('rol').selectedIndex = i;
-                break;
-            }
+            if (rolOpts[i].text === u.rol) { document.getElementById('rol').selectedIndex = i; break; }
         }
 
+        // Seleccionar sucursal
         const sucOpts = document.getElementById('sucursal').options;
         for (let i = 0; i < sucOpts.length; i++) {
-            if (sucOpts[i].text === u.sucursal) {
-                document.getElementById('sucursal').selectedIndex = i;
-                break;
-            }
+            if (sucOpts[i].text === u.sucursal) { document.getElementById('sucursal').selectedIndex = i; break; }
         }
 
+        // Limpiar errores previos
+        ['errNombre','errApellido','errUsername','errCorreo','errPassword','errSucursal'].forEach(id => {
+            document.getElementById(id).textContent = '';
+        });
+
+        toggleSucursal();
         abrirModal(false);
     }
 
     async function guardarUsuario() {
-        const h = authHeaders();
+        if (!formularioValido()) return;
+
+        const h  = authHeaders();
         const id = document.getElementById('usuarioId').value;
+        const pw = document.getElementById('password').value;
+
+        const sucursalVisible = document.getElementById('seccionSucursal').style.display !== 'none';
         const body = {
-            nombre: document.getElementById('nombre').value,
-            apellido: document.getElementById('apellido').value,
-            username: document.getElementById('username').value,
-            correo: document.getElementById('correo').value,
-            password: document.getElementById('password').value || 'nochange',
-            idRol: parseInt(document.getElementById('rol').value),
-            idSucursal: parseInt(document.getElementById('sucursal').value)
+            nombre:     document.getElementById('nombre').value,
+            apellido:   document.getElementById('apellido').value,
+            username:   document.getElementById('username').value,
+            correo:     document.getElementById('correo').value || null,
+            password:   pw || (esEdicion ? 'nochange' : ''),
+            idRol:      parseInt(document.getElementById('rol').value),
+            idSucursal: sucursalVisible ? (parseInt(document.getElementById('sucursal').value) || null) : null
         };
 
-        const url = id ? `/api/usuarios/${id}` : '/api/usuarios';
+        const url    = id ? `/api/usuarios/${id}` : '/api/usuarios';
         const method = id ? 'PUT' : 'POST';
+
+        const btn = document.getElementById('btnGuardar');
+        btn.disabled = true; btn.textContent = 'Guardando...';
 
         try {
             const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
             if (res.ok) {
                 cerrarModal();
                 cargarDatos();
+                mostrarAlerta(id ? 'Usuario actualizado' : 'Usuario creado correctamente', 'success');
             } else {
                 const err = await res.json();
-                alert(err.mensaje ?? 'Error al guardar');
+                // Show field-level validation errors if present
+                if (err.datos && typeof err.datos === 'object') {
+                    Object.entries(err.datos).forEach(([campo, msg]) => {
+                        const errEl = document.getElementById('err' + campo.charAt(0).toUpperCase() + campo.slice(1));
+                        const inputEl = document.getElementById(campo);
+                        if (errEl) errEl.textContent = msg;
+                        if (inputEl) inputEl.classList.add('error');
+                    });
+                    mostrarAlerta('Corrige los errores marcados en el formulario.', 'error');
+                } else {
+                    // Highlight username field if duplicate
+                    const msg = err.mensaje ?? 'Error al guardar';
+                    if (msg.toLowerCase().includes('username') || msg.toLowerCase().includes('nombre de usuario')) {
+                        document.getElementById('errUsername').textContent = msg;
+                        document.getElementById('username').classList.add('error');
+                    }
+                    mostrarAlerta(msg, 'error');
+                }
             }
-        } catch(e) { alert('Error de conexión'); }
+        } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
+        finally { btn.disabled = false; btn.innerHTML = '<i class="bi bi-floppy2-fill"></i> Guardar'; }
     }
 
     async function cambiarEstado(id, activo) {
         const h = authHeaders();
         try {
             const res = await fetch(`/api/usuarios/${id}/estado?activo=${activo}`, {method: 'PATCH', headers: h});
-            if (res.ok) cargarDatos();
-            else alert('Error al cambiar estado');
-        } catch(e) { alert('Error de conexión'); }
+            if (res.ok) {
+                cargarDatos();
+                mostrarAlerta(activo ? 'Usuario activado' : 'Usuario desactivado', 'success');
+            } else {
+                mostrarAlerta('Error al cambiar estado', 'error');
+            }
+        } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
     }
 
     cargarFiltros();
     cargarDatos();
+    document.getElementById('buscador').addEventListener('input', function() {
+        document.getElementById('buscadorClear').style.display = this.value ? 'block' : 'none';
+    });
 </script>
 </body>
 </html>

@@ -16,7 +16,7 @@ import java.util.List;
 import com.empresa.sistema.dto.response.PageResponseDTO;
 
 @RestController
-@RequestMapping("/api/inventario")
+@RequestMapping("/api/stock")
 @RequiredArgsConstructor
 @Tag(name = "Inventario", description = "Gestión de inventario por sucursal")
 @SecurityRequirement(name = "bearerAuth")
@@ -32,8 +32,16 @@ public class InventarioController {
         return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.listarPorSucursal(idSucursal)));
     }
 
+    @GetMapping("/producto/{idProducto}")
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO','CAJERO')")
+    @Operation(summary = "Listar inventario de un producto en todas las sucursales")
+    public ResponseEntity<ApiResponseDTO<List<InventarioResponseDTO>>> listarPorProducto(
+            @PathVariable Integer idProducto) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.listarPorProducto(idProducto)));
+    }
+
     @GetMapping("/producto/{idProducto}/sucursal/{idSucursal}")
-    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO')")
+    @PreAuthorize("hasAnyRole('ADMIN','BODEGUERO','CAJERO')")
     @Operation(summary = "Consultar stock de un producto en una sucursal")
     public ResponseEntity<ApiResponseDTO<InventarioResponseDTO>> buscarStock(
             @PathVariable Integer idProducto, @PathVariable Integer idSucursal) {
@@ -46,10 +54,11 @@ public class InventarioController {
     @Operation(summary = "Listar inventario paginado con búsqueda y filtros")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<InventarioResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String campo,
             @RequestParam(required = false) Integer idSucursal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.buscarPaginado(search, idSucursal, page, size)));
+        return ResponseEntity.ok(ApiResponseDTO.ok(inventarioService.buscarPaginado(search, campo, idSucursal, page, size)));
     }
 
     @PutMapping("/{id}")

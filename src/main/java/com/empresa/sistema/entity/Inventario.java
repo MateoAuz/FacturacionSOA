@@ -4,13 +4,15 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
+/** Renombrado de inventario → stock */
 @Entity
-@Table(name = "inventario")
+@Table(name = "stock")
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class Inventario {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_inventario")
+    @Column(name = "id_stock")
     private Integer idInventario;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -23,9 +25,6 @@ public class Inventario {
 
     @Column(name = "cantidad", nullable = false)
     private Integer cantidad = 0;
-
-    @Column(name = "stock_minimo", nullable = false)
-    private Integer stockMinimo = 0;
 
     @Column(name = "ultima_actualizacion", nullable = false)
     private LocalDateTime ultimaActualizacion = LocalDateTime.now();

@@ -15,8 +15,14 @@ public interface ClienteRepository extends JpaRepository<Cliente, Integer> {
     List<Cliente> findByNombresContainingIgnoreCaseOrApellidosContainingIgnoreCase(String nombres, String apellidos);
 
     @Query("SELECT c FROM Cliente c WHERE " +
-            "(:search IS NULL OR LOWER(c.nombres) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(c.identificacion) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-            "LOWER(c.correo) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<Cliente> buscarPaginado(@Param("search") String search, Pageable pageable);
+            "(:search IS NULL OR " +
+            "   (:campo IS NULL AND (LOWER(c.nombres) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(c.apellidos) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(c.identificacion) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(c.correo) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'nombre' AND (LOWER(c.nombres) LIKE LOWER(CONCAT('%',:search,'%')) OR LOWER(c.apellidos) LIKE LOWER(CONCAT('%',:search,'%')))) OR " +
+            "   (:campo = 'identificacion' AND LOWER(c.identificacion) LIKE LOWER(CONCAT('%',:search,'%'))) OR " +
+            "   (:campo = 'correo' AND LOWER(c.correo) LIKE LOWER(CONCAT('%',:search,'%')))) AND " +
+            "(:tipo IS NULL OR c.tipoIdentificacion = :tipo)")
+    Page<Cliente> buscarPaginado(@Param("search") String search,
+                                 @Param("campo") String campo,
+                                 @Param("tipo") Cliente.TipoIdentificacion tipo,
+                                 Pageable pageable);
 }

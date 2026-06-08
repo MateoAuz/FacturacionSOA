@@ -1,26 +1,69 @@
 <!DOCTYPE html>
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{layout :: head('Inventario')}"></head>
+<style>
+    .modal-xl { max-width:600px!important; }
+    .modal-section { background:#f8fafc;border-radius:8px;padding:16px;margin-bottom:14px; }
+    .modal-section-title {
+        font-size:11px;font-weight:700;color:#4C97D2;
+        text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;
+    }
+    .grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+    .form-group { margin-bottom:0; }
+    .form-group label {
+        display:block;font-size:11px;font-weight:700;color:#12274B;
+        margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px;
+    }
+    .form-group input, .form-group select {
+        width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;
+        border-radius:7px;font-size:13px;outline:none;color:#12274B;
+        transition:border-color 0.2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color:#1468B1; }
+    .badge-ok { background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+    .badge-sin { background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+</style>
 <body>
 <div th:replace="~{layout :: sidebar('inventario')}"></div>
 
 <div class="main">
     <div class="topbar">
-        <h1>Inventario</h1>
+        <h1><i class="bi bi-box-seam-fill"></i> Inventario</h1>
         <span class="user-badge" id="userDisplay"></span>
     </div>
 
     <div class="card-box">
         <div class="card-box-header">
-            <h2>Stock por Sucursal</h2>
-            <button class="btn btn-primary" id="btnNuevo" onclick="abrirModal()">+ Agregar Stock</button>
+            <h2 id="tabTitulo">Stock por Sucursal</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn" id="tabBtnSolicitudes" onclick="mostrarTabSolicitudes()"
+                    style="display:none;background:#e8f4fd;color:#1468B1;font-weight:700;">
+                    <i class="bi bi-send"></i> Solicitudes
+                    <span id="badgePendientes" style="display:none;background:#dc2626;color:white;border-radius:20px;padding:1px 7px;font-size:11px;margin-left:4px;"></span>
+                </button>
+                <button class="btn" id="tabBtnStock" onclick="mostrarTabStock()"
+                    style="display:none;background:#f0f4f8;color:#333;">
+                    <i class="bi bi-box-seam-fill"></i> Stock
+                </button>
+                <button class="btn btn-primary" id="btnAjustarStock" onclick="abrirModalNuevo()">+ Ajustar Stock</button>
+            </div>
         </div>
 
-        <!-- Filtros -->
+        <!-- ── Tab Stock ── -->
+        <div id="tabStock">
         <div style="display:flex;gap:12px;padding:16px 24px;border-bottom:1px solid #f0f4f8;flex-wrap:wrap;">
-            <input type="text" id="buscador" placeholder="Buscar por producto o código..."
+            <select id="filtroCampo" onchange="resetPagina()"
+                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
+                <option value="">Buscar por...</option>
+                <option value="nombre">Nombre</option>
+                <option value="codigo">Código</option>
+            </select>
+            <div style="position:relative;flex:1;min-width:200px;">
+                <input type="text" id="buscador" placeholder="Buscar producto..."
                    oninput="resetPagina()"
-                   style="flex:1;min-width:200px;padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B"/>
+                   style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;padding-right:28px;outline:none;color:#12274B"/>
+                <button id="buscadorClear" onclick="document.getElementById('buscador').value='';document.getElementById('buscadorClear').style.display='none';resetPagina()" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
+            </div>
             <select id="filtroSucursal" onchange="resetPagina()"
                     style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;min-width:160px">
                 <option value="">Todas las sucursales</option>
@@ -40,7 +83,7 @@
                 <th>Código</th>
                 <th>Sucursal</th>
                 <th>Cantidad</th>
-                <th>Stock Mínimo</th>
+                <th>Estado</th>
                 <th>Última Actualización</th>
                 <th>Acciones</th>
             </tr>
@@ -50,71 +93,88 @@
             </tbody>
         </table>
 
-        <!-- Paginación -->
         <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-top:1px solid #f0f4f8;">
             <span id="infoPagina" style="font-size:13px;color:#888"></span>
             <div style="display:flex;gap:6px;" id="controlesPagina"></div>
         </div>
+        </div><!-- /tabStock -->
+
+        <!-- ── Tab Solicitudes (BODEGUERO) ── -->
+        <div id="tabSolicitudes" style="display:none;">
+            <div style="padding:20px 24px;">
+                <div id="solicitudesContenido">
+                    <div style="text-align:center;color:#aaa;padding:40px;font-size:14px;">
+                        <i class="bi bi-send" style="font-size:32px;color:#D0EDFC;display:block;margin-bottom:10px;"></i>
+                        Cargando solicitudes...
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- Modal -->
+<!-- Modal Stock -->
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal">
-        <h3 id="modalTitulo">Agregar Stock</h3>
+    <div class="modal modal-xl">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+            <h3 id="modalTitulo" style="margin:0;font-size:17px;color:#12274B;">Ajustar Stock</h3>
+            <button onclick="cerrarModal()" style="background:none;border:none;cursor:pointer;font-size:22px;color:#888;line-height:1;">×</button>
+        </div>
         <input type="hidden" id="inventarioId"/>
-        <div class="form-group">
-            <label>Producto</label>
-            <select id="producto"></select>
-        </div>
-        <div class="form-group">
-            <label>Sucursal</label>
-            <select id="sucursal"></select>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-                <label>Cantidad</label>
-                <input type="number" id="cantidad" placeholder="0" min="0"/>
+
+        <div class="modal-section">
+            <div class="modal-section-title">Selección</div>
+            <div class="form-group" style="margin-bottom:14px;">
+                <label>Producto</label>
+                <select id="producto"></select>
             </div>
             <div class="form-group">
-                <label>Stock Mínimo</label>
-                <input type="number" id="stockMinimo" placeholder="0" min="0"/>
+                <label>Sucursal</label>
+                <select id="sucursal"></select>
             </div>
         </div>
-        <div class="modal-footer">
+
+        <div class="modal-section">
+            <div class="modal-section-title">Cantidad en Stock</div>
+            <div class="form-group">
+                <label>Cantidad actual</label>
+                <input type="number" id="cantidad" placeholder="0" min="0"
+                       style="font-size:18px;font-weight:700;padding:12px 14px;"/>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="margin-top:8px;">
             <button class="btn" onclick="cerrarModal()" style="background:#f0f4f8;color:#333">Cancelar</button>
-            <button class="btn btn-primary" onclick="guardarInventario()">Guardar</button>
+            <button class="btn btn-primary" id="btnGuardar" onclick="guardarInventario()">Guardar Stock</button>
         </div>
     </div>
 </div>
 
 <div th:replace="~{layout :: scripts}"></div>
 <script>
-    if (rol === 'CAJERO') window.location.href = '/dashboard';
+    if (rol === 'CAJERO') window.location.href = '/ventas';
 
     let paginaActual = 0;
     let totalPaginas = 0;
 
-    function resetPagina() {
-        paginaActual = 0;
-        cargarDatos();
-    }
+    function resetPagina() { paginaActual = 0; cargarDatos(); }
 
     async function cargarDatos() {
         const h = authHeaders();
         const search = document.getElementById('buscador').value;
+        const campo = document.getElementById('filtroCampo').value;
         const idSucursal = document.getElementById('filtroSucursal').value;
         const size = document.getElementById('filtroSize').value;
 
-        let url = `/api/inventario/paginado?page=${paginaActual}&size=${size}`;
+        let url = `/api/stock/paginado?page=${paginaActual}&size=${size}`;
         if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (campo) url += `&campo=${encodeURIComponent(campo)}`;
         if (idSucursal) url += `&idSucursal=${idSucursal}`;
 
         try {
             const res = await fetch(url, {headers: h});
             const data = await res.json();
             const page = data.datos ?? data;
-
             totalPaginas = page.totalPaginas;
 
             document.getElementById('infoPagina').textContent =
@@ -129,16 +189,12 @@
 
             document.getElementById('tablaInventario').innerHTML = page.contenido.map(i => `
                 <tr>
-                    <td>${i.producto}</td>
-                    <td>${i.codigoProducto ?? '-'}</td>
+                    <td><strong>${i.producto}</strong></td>
+                    <td><code style="background:#f0f4f8;padding:2px 6px;border-radius:4px;font-size:12px">${i.codigoProducto ?? '-'}</code></td>
                     <td>${i.sucursal}</td>
-                    <td>
-                        <span class="badge ${i.cantidad <= (i.stockMinimo ?? 0) ? 'badge-danger' : 'badge-success'}">
-                            ${i.cantidad}
-                        </span>
-                    </td>
-                    <td>${i.stockMinimo ?? 0}</td>
-                    <td>${i.ultimaActualizacion ? new Date(i.ultimaActualizacion).toLocaleDateString('es-EC') : '-'}</td>
+                    <td style="font-size:16px;font-weight:700;color:#12274B">${i.cantidad}</td>
+                    <td><span class="${i.estadoStock === 'OK' ? 'badge-ok' : 'badge-sin'}">${i.estadoStock}</span></td>
+                    <td style="font-size:12px;color:#888">${i.ultimaActualizacion ? new Date(i.ultimaActualizacion).toLocaleDateString('es-EC', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-'}</td>
                     <td>
                         <button class="btn btn-primary btn-sm" onclick="editarInventario(${i.idInventario})">Editar</button>
                     </td>
@@ -151,31 +207,21 @@
 
     function renderPaginacion() {
         const cont = document.getElementById('controlesPagina');
-        let html = '';
-
-        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual - 1})"
-            ${paginaActual === 0 ? 'disabled style="opacity:0.4"' : ''}
+        let html = `<button class="btn btn-sm" onclick="irPagina(${paginaActual-1})"
+            ${paginaActual===0?'disabled style="opacity:0.4"':''}
             style="background:#f0f4f8;color:#333">Anterior</button>`;
-
         for (let i = 0; i < totalPaginas; i++) {
-            if (totalPaginas <= 7 || Math.abs(i - paginaActual) <= 2) {
+            if (totalPaginas <= 7 || Math.abs(i-paginaActual) <= 2)
                 html += `<button class="btn btn-sm" onclick="irPagina(${i})"
-                    style="background:${i === paginaActual ? '#1468B1' : '#f0f4f8'};color:${i === paginaActual ? 'white' : '#333'}">${i + 1}</button>`;
-            }
+                    style="background:${i===paginaActual?'#1468B1':'#f0f4f8'};color:${i===paginaActual?'white':'#333'}">${i+1}</button>`;
         }
-
-        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual + 1})"
-            ${paginaActual >= totalPaginas - 1 ? 'disabled style="opacity:0.4"' : ''}
+        html += `<button class="btn btn-sm" onclick="irPagina(${paginaActual+1})"
+            ${paginaActual>=totalPaginas-1?'disabled style="opacity:0.4"':''}
             style="background:#f0f4f8;color:#333">Siguiente</button>`;
-
         cont.innerHTML = html;
     }
 
-    function irPagina(p) {
-        if (p < 0 || p >= totalPaginas) return;
-        paginaActual = p;
-        cargarDatos();
-    }
+    function irPagina(p) { if(p>=0&&p<totalPaginas){paginaActual=p;cargarDatos();} }
 
     async function cargarFiltros() {
         const h = authHeaders();
@@ -187,98 +233,221 @@
         const productos = prods.datos ?? prods;
         const sucursales = sucs.datos ?? sucs;
 
-        document.getElementById('producto').innerHTML = productos.map(p =>
-            `<option value="${p.idProducto}">${p.nombre}</option>`).join('');
+        document.getElementById('producto').innerHTML =
+            productos.map(p => `<option value="${p.idProducto}">${p.nombre} (${p.codigo})</option>`).join('');
 
-        const sucOpts = sucursales.map(s =>
-            `<option value="${s.idSucursal}">${s.nombre}</option>`).join('');
-
+        const sucOpts = sucursales.map(s => `<option value="${s.idSucursal}">${s.nombre}</option>`).join('');
         document.getElementById('sucursal').innerHTML = sucOpts;
-        document.getElementById('filtroSucursal').innerHTML =
-            '<option value="">Todas las sucursales</option>' + sucOpts;
+        document.getElementById('filtroSucursal').innerHTML = '<option value="">Todas las sucursales</option>' + sucOpts;
 
-        // BODEGUERO solo puede agregar stock en su sucursal
+        // BODEGUERO solo puede operar en su sucursal
         const idSucursalLocal = localStorage.getItem('idSucursal');
         if (rol === 'BODEGUERO' && idSucursalLocal) {
             document.getElementById('sucursal').value = idSucursalLocal;
             document.getElementById('sucursal').disabled = true;
+            document.getElementById('filtroSucursal').value = idSucursalLocal;
         }
     }
 
-    function abrirModal(limpiar = true) {
-        if (limpiar) {
-            document.getElementById('modalTitulo').textContent = 'Agregar Stock';
-            document.getElementById('inventarioId').value = '';
-            document.getElementById('cantidad').value = '';
-            document.getElementById('stockMinimo').value = '';
-        }
+    function abrirModalNuevo() {
+        document.getElementById('modalTitulo').textContent = 'Ajustar Stock';
+        document.getElementById('inventarioId').value = '';
+        document.getElementById('cantidad').value = '';
+        document.getElementById('producto').disabled = false;
         document.getElementById('modalOverlay').classList.add('open');
     }
 
-    function cerrarModal() {
-        document.getElementById('modalOverlay').classList.remove('open');
-    }
+    function cerrarModal() { document.getElementById('modalOverlay').classList.remove('open'); }
 
     async function editarInventario(id) {
         const h = authHeaders();
-        const res = await fetch(`/api/inventario/${id}`, {headers: h});
+        const res = await fetch(`/api/stock/${id}`, {headers: h});
         const data = await res.json();
         const inv = data.datos ?? data;
 
         document.getElementById('modalTitulo').textContent = 'Editar Stock';
         document.getElementById('inventarioId').value = inv.idInventario;
         document.getElementById('cantidad').value = inv.cantidad;
-        document.getElementById('stockMinimo').value = inv.stockMinimo ?? 0;
+        document.getElementById('producto').disabled = true;
 
         const selProd = document.getElementById('producto').options;
         for (let i = 0; i < selProd.length; i++) {
-            if (selProd[i].text === inv.producto) {
-                document.getElementById('producto').selectedIndex = i;
-                break;
-            }
+            if (selProd[i].text.includes(inv.producto)) { document.getElementById('producto').selectedIndex = i; break; }
         }
 
-        // Solo cambiar sucursal si es ADMIN
         if (rol === 'ADMIN') {
+            document.getElementById('sucursal').disabled = false;
             const selSuc = document.getElementById('sucursal').options;
             for (let i = 0; i < selSuc.length; i++) {
-                if (selSuc[i].text === inv.sucursal) {
-                    document.getElementById('sucursal').selectedIndex = i;
-                    break;
-                }
+                if (selSuc[i].text === inv.sucursal) { document.getElementById('sucursal').selectedIndex = i; break; }
             }
         }
 
-        abrirModal(false);
+        document.getElementById('modalOverlay').classList.add('open');
     }
 
     async function guardarInventario() {
         const h = authHeaders();
         const id = document.getElementById('inventarioId').value;
+        const cantidadVal = parseInt(document.getElementById('cantidad').value);
+
+        if (isNaN(cantidadVal) || cantidadVal < 0) { mostrarAlerta('Ingresa una cantidad válida (≥ 0)', 'error'); return; }
+
         const body = {
             idProducto: parseInt(document.getElementById('producto').value),
             idSucursal: parseInt(document.getElementById('sucursal').value),
-            cantidad: parseInt(document.getElementById('cantidad').value),
-            stockMinimo: parseInt(document.getElementById('stockMinimo').value) || 0
+            cantidad: cantidadVal
         };
 
-        const url = id ? `/api/inventario/${id}` : '/api/inventario';
-        const method = id ? 'PUT' : 'POST';
+        const btn = document.getElementById('btnGuardar');
+        btn.disabled = true; btn.textContent = 'Guardando...';
 
         try {
+            const url    = id ? `/api/stock/${id}` : '/api/stock';
+            const method = id ? 'PUT' : 'POST';
             const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
-            if (res.ok) {
-                cerrarModal();
-                cargarDatos();
-            } else {
-                const err = await res.json();
-                alert(err.mensaje ?? 'Error al guardar');
+            if (res.ok) { cerrarModal(); cargarDatos(); }
+            else { const err = await res.json(); mostrarAlerta(err.mensaje ?? 'Error al guardar', 'error'); }
+        } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
+        finally { btn.disabled = false; btn.textContent = 'Guardar Stock'; }
+    }
+
+    /* ─── Tabs ─── */
+    function mostrarTabStock() {
+        document.getElementById('tabStock').style.display = '';
+        document.getElementById('tabSolicitudes').style.display = 'none';
+        document.getElementById('tabTitulo').textContent = 'Stock por Sucursal';
+        document.getElementById('tabBtnStock').style.cssText += ';background:#f0f4f8;color:#333;';
+        document.getElementById('tabBtnSolicitudes').style.cssText += ';background:#e8f4fd;color:#1468B1;';
+        document.getElementById('btnAjustarStock').style.display = '';
+    }
+
+    function mostrarTabSolicitudes() {
+        document.getElementById('tabStock').style.display = 'none';
+        document.getElementById('tabSolicitudes').style.display = '';
+        document.getElementById('tabTitulo').textContent = 'Solicitudes de Stock Pendientes';
+        document.getElementById('tabBtnSolicitudes').style.cssText += ';background:#1468B1;color:white;';
+        document.getElementById('tabBtnStock').style.cssText += ';background:#f0f4f8;color:#333;';
+        document.getElementById('btnAjustarStock').style.display = 'none';
+        cargarSolicitudes();
+    }
+
+    /* ─── Solicitudes ─── */
+    async function cargarSolicitudes() {
+        const h = authHeaders();
+        const cont = document.getElementById('solicitudesContenido');
+        cont.innerHTML = '<div style="text-align:center;color:#aaa;padding:40px;">Cargando...</div>';
+        try {
+            const res = await fetch('/api/solicitudes-stock/pendientes', {headers: h});
+            const data = await res.json();
+            const lista = data.datos ?? data;
+            if (!lista.length) {
+                cont.innerHTML = `<div style="text-align:center;color:#aaa;padding:48px;">
+                    <i class="bi bi-check-circle-fill" style="font-size:36px;color:#d1fae5;display:block;margin-bottom:10px;"></i>
+                    <strong style="color:#12274B;">Sin solicitudes pendientes</strong><br>
+                    <span style="font-size:13px;">Cuando un vendedor necesite stock, aparecerá aquí.</span>
+                </div>`;
+                document.getElementById('badgePendientes').style.display = 'none';
+                return;
             }
-        } catch(e) { alert('Error de conexión'); }
+            document.getElementById('badgePendientes').textContent = lista.length;
+            document.getElementById('badgePendientes').style.display = '';
+            cont.innerHTML = lista.map(s => `
+                <div style="background:#f8fafc;border:1.5px solid #D0EDFC;border-radius:10px;padding:18px 20px;margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#12274B;margin-bottom:4px;">
+                                ${s.producto}
+                                <code style="background:#e8f4fd;color:#1468B1;padding:1px 6px;border-radius:4px;font-size:11px;margin-left:6px;">${s.codigoProducto}</code>
+                            </div>
+                            <div style="font-size:13px;color:#555;">
+                                <i class="bi bi-geo-alt-fill" style="color:#4C97D2;"></i>
+                                Solicita <strong>${s.sucursalSolicitante}</strong> &mdash; vendedor: <strong>${s.usuarioSolicitante}</strong>
+                            </div>
+                            ${s.observacion ? '<div style="font-size:12px;color:#888;margin-top:4px;"><i class="bi bi-chat-left-text"></i> ' + s.observacion + '</div>' : ''}
+                            <div style="font-size:11px;color:#aaa;margin-top:6px;">${new Date(s.fechaSolicitud).toLocaleString('es-EC')}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:28px;font-weight:800;color:#1468B1;margin-bottom:8px;">${s.cantidad} <span style="font-size:14px;font-weight:400;color:#888;">unidades</span></div>
+                            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                                <button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;font-weight:700;"
+                                    onclick="responderSolicitud(${s.idSolicitud},'rechazar',this)">
+                                    <i class="bi bi-x-circle-fill"></i> Rechazar
+                                </button>
+                                <button class="btn btn-primary btn-sm"
+                                    onclick="responderSolicitud(${s.idSolicitud},'aceptar',this)">
+                                    <i class="bi bi-check-circle-fill"></i> Aceptar y Transferir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) {
+            cont.innerHTML = '<div style="color:#e74c3c;padding:20px;text-align:center;">Error al cargar solicitudes.</div>';
+        }
+    }
+
+    async function responderSolicitud(id, accion, btn) {
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = accion === 'aceptar' ? 'Procesando...' : 'Rechazando...';
+        try {
+            const h = authHeaders();
+            const res = await fetch('/api/solicitudes-stock/' + id + '/' + accion, {method:'PATCH', headers:h});
+            const data = await res.json();
+            if (res.ok) {
+                mostrarAlerta(accion === 'aceptar'
+                    ? 'Solicitud aceptada. El stock fue transferido.'
+                    : 'Solicitud rechazada.', accion === 'aceptar' ? 'success' : 'info');
+                actualizarBadgePendientes();
+                cargarSolicitudes();
+            } else {
+                mostrarAlerta(data.mensaje ?? 'Error al procesar', 'error');
+                btn.disabled = false; btn.innerHTML = orig;
+            }
+        } catch(e) {
+            mostrarAlerta('Error de conexión', 'error');
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    function mostrarAlerta(msg, tipo) {
+        tipo = tipo || 'info';
+        const colors = {success:'#059669', error:'#dc2626', info:'#1468B1', warning:'#d97706'};
+        const icons  = {success:'check-circle-fill', error:'x-circle-fill', info:'info-circle-fill', warning:'exclamation-triangle-fill'};
+        const div = document.createElement('div');
+        div.style.cssText = 'position:fixed;top:20px;right:20px;background:white;border-left:4px solid ' + (colors[tipo]||colors.info) + ';' +
+            'border-radius:8px;padding:14px 18px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:9999;' +
+            'display:flex;align-items:center;gap:10px;font-size:14px;color:#12274B;max-width:340px;';
+        div.innerHTML = '<i class="bi bi-' + (icons[tipo]||icons.info) + '" style="color:' + (colors[tipo]||colors.info) + ';font-size:18px;flex-shrink:0;"></i>' + msg;
+        document.body.appendChild(div);
+        setTimeout(function() { div.remove(); }, 4000);
+    }
+
+    async function actualizarBadgePendientes() {
+        if (rol !== 'BODEGUERO') return;
+        try {
+            const h = authHeaders();
+            const res = await fetch('/api/solicitudes-stock/pendientes/count', {headers:h});
+            const data = await res.json();
+            const count = data.datos ?? 0;
+            const badge = document.getElementById('badgePendientes');
+            if (badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
+        } catch(e) {}
     }
 
     cargarFiltros();
     cargarDatos();
+
+    if (rol === 'BODEGUERO') {
+        document.getElementById('tabBtnSolicitudes').style.display = '';
+        document.getElementById('tabBtnStock').style.display = '';
+        actualizarBadgePendientes();
+    }
+    document.getElementById('buscador').addEventListener('input', function() {
+        document.getElementById('buscadorClear').style.display = this.value ? 'block' : 'none';
+    });
 </script>
 </body>
 </html>

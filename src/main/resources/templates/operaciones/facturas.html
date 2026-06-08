@@ -15,6 +15,7 @@
     .cm-title { font-size:15px;font-weight:700;color:#12274B;margin-bottom:8px; }
     .cm-msg   { font-size:13px;color:#555;margin-bottom:20px;line-height:1.5; }
     .cm-btns  { display:flex;gap:10px;justify-content:center; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 <body>
 <div th:replace="~{layout :: sidebar('facturas')}"></div>
@@ -175,7 +176,7 @@
                     fechaCell += `<div style="font-size:11px;color:#991b1b;margin-top:2px;"><i class="bi bi-x-circle-fill"></i> Anulada</div>`;
                 }
 
-                return `<tr>
+                return `<tr id="fila-${f.idFactura}">
                     <td><strong>${f.numeroSecuencial}</strong></td>
                     <td>${f.cliente ?? '-'}</td>
                     <td style="font-size:12px">${f.sucursal ?? '-'}</td>
@@ -241,15 +242,39 @@
     function emitirFactura(id) {
         mostrarConfirm(
             '¿Emitir esta factura?',
-            'Una vez emitida no se puede regresar a borrador.',
+            'Se enviará el PDF al correo del cliente. Una vez emitida no se puede regresar a borrador.',
             'emit', 'Emitir',
             async () => {
+                // Mostrar loading en la celda de acciones de esa fila
+                const fila = document.getElementById(`fila-${id}`);
+                if (fila) {
+                    const celdaAcciones = fila.querySelector('.acciones-cell');
+                    if (celdaAcciones) {
+                        celdaAcciones.innerHTML = `
+                            <span style="display:flex;align-items:center;gap:7px;font-size:12px;
+                                         color:#1468B1;font-weight:600;padding:4px 8px;
+                                         background:#e8f4fd;border-radius:6px;">
+                                <i class="bi bi-send-fill"
+                                   style="animation:spin 1s linear infinite;font-size:13px"></i>
+                                Enviando...
+                            </span>`;
+                    }
+                }
                 const h = authHeaders();
                 try {
                     const res = await fetch(`/api/facturas/${id}/emitir`, {method:'POST', headers:h});
-                    if (res.ok) cargarDatos();
-                    else { const err = await res.json(); mostrarAlerta(err.mensaje ?? 'Error al emitir', 'error'); }
-                } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
+                    if (res.ok) {
+                        await cargarDatos();
+                        mostrarAlerta('Factura emitida correctamente. El correo se envió al cliente.', 'success');
+                    } else {
+                        const err = await res.json();
+                        await cargarDatos(); // restaurar botones
+                        mostrarAlerta(err.mensaje ?? 'Error al emitir', 'error');
+                    }
+                } catch(e) {
+                    await cargarDatos();
+                    mostrarAlerta('Error de conexión', 'error');
+                }
             }
         );
     }

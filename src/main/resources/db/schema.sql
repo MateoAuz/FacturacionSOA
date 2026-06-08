@@ -283,7 +283,7 @@ INSERT INTO configuracion_empresa (
     direccion_matriz, telefono, correo,
     obligado_contabilidad, ambiente
 ) VALUES (
-    'EMPRESA EJEMPLO S.A.', 'EMPRESA EJEMPLO', '1792000000001',
+    'Facturación SOA S.A.', 'Facturación SOA', '1792000000001',
     'Quito, Av. Amazonas N37-29', '0999999999', 'info@empresa.com',
     'NO', 1  -- 1=Pruebas | 2=Producción (Fase 2)
 );

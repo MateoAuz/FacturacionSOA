@@ -13,6 +13,7 @@ public interface FacturaRepository extends JpaRepository<Factura, Integer> {
 
     Optional<Factura> findByNumeroSecuencial(String numeroSecuencial);
     List<Factura> findBySucursal_IdSucursal(Integer idSucursal);
+    long countBySucursal_IdSucursal(Integer idSucursal);
     List<Factura> findByCliente_IdCliente(Integer idCliente);
 
     @Query("SELECT f FROM Factura f " +

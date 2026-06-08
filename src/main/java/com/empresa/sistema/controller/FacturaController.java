@@ -79,6 +79,14 @@ public class FacturaController {
         return ResponseEntity.ok(ApiResponseDTO.ok("Factura anulada", null));
     }
 
+    // ── Utilidades ───────────────────────────────────────────────
+    @GetMapping("/proximo-numero")
+    @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
+    @Operation(summary = "Vista previa del próximo número de factura para una sucursal")
+    public ResponseEntity<ApiResponseDTO<String>> proximoNumero(@RequestParam Integer idSucursal) {
+        return ResponseEntity.ok(ApiResponseDTO.ok(facturaService.proximoNumero(idSucursal)));
+    }
+
     // ── PDF ───────────────────────────────────────────────────────
     @GetMapping("/{id}/pdf")
     @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")

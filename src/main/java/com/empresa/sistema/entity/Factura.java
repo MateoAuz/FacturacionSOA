@@ -68,6 +68,55 @@ public class Factura {
     @Column(name = "observacion", length = 200)
     private String observacion;
 
+    // ── Snapshot en el momento de la venta (inmutable para auditoría) ──
+    /** Tipo de identificación del cliente al momento de facturar */
+    @Column(name = "snap_cli_tipo_id", length = 10)
+    private String snapCliTipoId;
+
+    /** Número de identificación del cliente al momento de facturar */
+    @Column(name = "snap_cli_identificacion", length = 20)
+    private String snapCliIdentificacion;
+
+    /** Nombres completos del cliente al momento de facturar */
+    @Column(name = "snap_cli_nombres", length = 60)
+    private String snapCliNombres;
+
+    /** Apellidos del cliente al momento de facturar */
+    @Column(name = "snap_cli_apellidos", length = 60)
+    private String snapCliApellidos;
+
+    /** Razón social del cliente (si aplica) */
+    @Column(name = "snap_cli_razon_social", length = 100)
+    private String snapCliRazonSocial;
+
+    /** Correo del cliente al momento de facturar */
+    @Column(name = "snap_cli_correo", length = 80)
+    private String snapCliCorreo;
+
+    /** Teléfono del cliente al momento de facturar */
+    @Column(name = "snap_cli_telefono", length = 15)
+    private String snapCliTelefono;
+
+    /** Dirección del cliente al momento de facturar */
+    @Column(name = "snap_cli_direccion", length = 120)
+    private String snapCliDireccion;
+
+    /** Nombre completo del vendedor al momento de facturar */
+    @Column(name = "snap_usuario_nombre", length = 100)
+    private String snapUsuarioNombre;
+
+    /** Nombre de la sucursal al momento de facturar */
+    @Column(name = "snap_sucursal_nombre", length = 80)
+    private String snapSucursalNombre;
+
+    /** Ciudad de la sucursal al momento de facturar */
+    @Column(name = "snap_sucursal_ciudad", length = 80)
+    private String snapSucursalCiudad;
+
+    /** Porcentaje de IVA aplicado al momento de facturar */
+    @Column(name = "snap_iva_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal snapIvaPorcentaje;
+
     // ── Campos SRI (Fase 2) ───────────────────────────────────────
     @Column(name = "fecha_emision")
     private LocalDateTime fechaEmision;

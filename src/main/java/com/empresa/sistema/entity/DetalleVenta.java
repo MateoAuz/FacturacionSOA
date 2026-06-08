@@ -31,4 +31,12 @@ public class DetalleVenta {
 
     @Column(name = "subtotal_linea", nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotalLinea;
+
+    /** Nombre del producto al momento de facturar (snapshot para auditoría) */
+    @Column(name = "snap_producto_nombre", length = 100)
+    private String snapProductoNombre;
+
+    /** Código del producto al momento de facturar (snapshot para auditoría) */
+    @Column(name = "snap_producto_codigo", length = 30)
+    private String snapProductoCodigo;
 }

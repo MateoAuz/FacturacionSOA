@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     Optional<Producto> findByCodigo(String codigo);
@@ -21,4 +22,23 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     Page<Producto> buscarPaginado(@Param("search") String search,
                                   @Param("idCategoria") Integer idCategoria,
                                   Pageable pageable);
+
+    /** Filtra solo productos con stock > 0 en la sucursal indicada */
+    @Query(value = "SELECT p FROM Producto p " +
+            "JOIN Inventario i ON i.producto = p " +
+            "WHERE p.activo = true " +
+            "AND i.sucursal.idSucursal = :idSucursal " +
+            "AND i.cantidad > 0 " +
+            "AND (:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "  OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%')))",
+           countQuery = "SELECT COUNT(p) FROM Producto p " +
+            "JOIN Inventario i ON i.producto = p " +
+            "WHERE p.activo = true " +
+            "AND i.sucursal.idSucursal = :idSucursal " +
+            "AND i.cantidad > 0 " +
+            "AND (:search IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "  OR LOWER(p.codigo) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Producto> buscarPaginadoConStock(@Param("search") String search,
+                                          @Param("idSucursal") Integer idSucursal,
+                                          Pageable pageable);
 }

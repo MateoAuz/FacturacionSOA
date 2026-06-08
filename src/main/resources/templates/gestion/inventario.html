@@ -28,7 +28,7 @@
 
 <div class="main">
     <div class="topbar">
-        <h1>Inventario</h1>
+        <h1><i class="bi bi-box-seam-fill"></i> Inventario</h1>
         <span class="user-badge" id="userDisplay"></span>
     </div>
 
@@ -254,7 +254,7 @@
         const id = document.getElementById('inventarioId').value;
         const cantidadVal = parseInt(document.getElementById('cantidad').value);
 
-        if (isNaN(cantidadVal) || cantidadVal < 0) { alert('Ingresa una cantidad válida (≥ 0)'); return; }
+        if (isNaN(cantidadVal) || cantidadVal < 0) { mostrarAlerta('Ingresa una cantidad válida (≥ 0)', 'error'); return; }
 
         const body = {
             idProducto: parseInt(document.getElementById('producto').value),
@@ -266,10 +266,12 @@
         btn.disabled = true; btn.textContent = 'Guardando...';
 
         try {
-            const res = await fetch('/api/inventario', {method: 'POST', headers: h, body: JSON.stringify(body)});
+            const url    = id ? `/api/stock/${id}` : '/api/stock';
+            const method = id ? 'PUT' : 'POST';
+            const res = await fetch(url, {method, headers: h, body: JSON.stringify(body)});
             if (res.ok) { cerrarModal(); cargarDatos(); }
-            else { const err = await res.json(); alert(err.mensaje ?? 'Error al guardar'); }
-        } catch(e) { alert('Error de conexión'); }
+            else { const err = await res.json(); mostrarAlerta(err.mensaje ?? 'Error al guardar', 'error'); }
+        } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
         finally { btn.disabled = false; btn.textContent = 'Guardar Stock'; }
     }
 

@@ -80,9 +80,11 @@ public class ProductoController {
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ProductoResponseDTO>>> buscarPaginado(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Integer idCategoria,
+            @RequestParam(required = false) Integer idSucursal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(ApiResponseDTO.ok(productoService.buscarPaginado(search, idCategoria, page, size)));
+        return ResponseEntity.ok(ApiResponseDTO.ok(
+                productoService.buscarPaginado(search, idCategoria, idSucursal, page, size)));
     }
 
 

@@ -165,3 +165,64 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- SELECT COUNT(*) FROM detalle_factura;
 -- SELECT COUNT(*) FROM stock;
 -- ============================================================
+
+
+-- ============================================================
+-- MIGRACIÓN: Snapshot de datos de factura para auditoría
+-- Ejecutar después de las migraciones anteriores.
+-- Propósito: preservar datos del cliente, vendedor, sucursal
+-- e IVA exactamente como estaban al momento de facturar.
+-- Requerimiento: reconstrucción exacta de ventas por auditoría
+-- ============================================================
+
+-- Columnas snapshot en tabla factura
+ALTER TABLE factura
+    ADD COLUMN IF NOT EXISTS snap_cli_tipo_id        VARCHAR(10)     COMMENT 'Tipo ID cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_identificacion VARCHAR(20)     COMMENT 'Identificación cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_nombres        VARCHAR(60)     COMMENT 'Nombres cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_apellidos      VARCHAR(60)     COMMENT 'Apellidos cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_razon_social   VARCHAR(100)    COMMENT 'Razón social cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_correo         VARCHAR(80)     COMMENT 'Correo cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_telefono       VARCHAR(15)     COMMENT 'Teléfono cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_cli_direccion      VARCHAR(120)    COMMENT 'Dirección cliente al facturar',
+    ADD COLUMN IF NOT EXISTS snap_usuario_nombre     VARCHAR(100)    COMMENT 'Nombre vendedor al facturar',
+    ADD COLUMN IF NOT EXISTS snap_sucursal_nombre    VARCHAR(80)     COMMENT 'Nombre sucursal al facturar',
+    ADD COLUMN IF NOT EXISTS snap_sucursal_ciudad    VARCHAR(80)     COMMENT 'Ciudad sucursal al facturar',
+    ADD COLUMN IF NOT EXISTS snap_iva_porcentaje     DECIMAL(5,2)    COMMENT 'Porcentaje IVA aplicado';
+
+-- Columnas snapshot en tabla detalle_factura
+ALTER TABLE detalle_factura
+    ADD COLUMN IF NOT EXISTS snap_producto_nombre VARCHAR(100) COMMENT 'Nombre del producto al facturar',
+    ADD COLUMN IF NOT EXISTS snap_producto_codigo VARCHAR(30)  COMMENT 'Código del producto al facturar';
+
+-- Rellenar snapshots en facturas existentes (retroactivo, usando datos actuales de FK)
+-- NOTA: Esto captura el estado ACTUAL de los clientes/productos para facturas históricas.
+-- Las facturas nuevas tendrán el snapshot correcto del momento exacto de la transacción.
+UPDATE factura f
+    JOIN cliente c  ON f.id_cliente  = c.id_cliente
+    JOIN usuario u  ON f.id_usuario  = u.id_usuario
+    JOIN sucursal s ON f.id_sucursal = s.id_sucursal
+    JOIN configuracion_iva iv ON f.id_iva = iv.id_iva
+SET
+    f.snap_cli_tipo_id        = COALESCE(f.snap_cli_tipo_id,        c.tipo_identificacion),
+    f.snap_cli_identificacion = COALESCE(f.snap_cli_identificacion, c.identificacion),
+    f.snap_cli_nombres        = COALESCE(f.snap_cli_nombres,        c.nombres),
+    f.snap_cli_apellidos      = COALESCE(f.snap_cli_apellidos,      c.apellidos),
+    f.snap_cli_razon_social   = COALESCE(f.snap_cli_razon_social,   c.razon_social),
+    f.snap_cli_correo         = COALESCE(f.snap_cli_correo,         c.correo),
+    f.snap_cli_telefono       = COALESCE(f.snap_cli_telefono,       c.telefono),
+    f.snap_cli_direccion      = COALESCE(f.snap_cli_direccion,      c.direccion),
+    f.snap_usuario_nombre     = COALESCE(f.snap_usuario_nombre,     CONCAT(u.nombre, ' ', u.apellido)),
+    f.snap_sucursal_nombre    = COALESCE(f.snap_sucursal_nombre,    s.nombre),
+    f.snap_sucursal_ciudad    = COALESCE(f.snap_sucursal_ciudad,    s.ciudad),
+    f.snap_iva_porcentaje     = COALESCE(f.snap_iva_porcentaje,     iv.porcentaje)
+WHERE f.snap_cli_identificacion IS NULL;
+
+UPDATE detalle_factura df
+    JOIN producto p ON df.id_producto = p.id_producto
+SET
+    df.snap_producto_nombre = COALESCE(df.snap_producto_nombre, p.nombre),
+    df.snap_producto_codigo = COALESCE(df.snap_producto_codigo, p.codigo)
+WHERE df.snap_producto_nombre IS NULL;
+
+SELECT 'Migración snapshot completada.' AS resultado;

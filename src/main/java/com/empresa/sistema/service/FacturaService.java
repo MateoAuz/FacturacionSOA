@@ -18,6 +18,10 @@ public interface FacturaService {
     PageResponseDTO<FacturaResponseDTO>   buscarPaginado(String search, String estado,
                                                          Integer idSucursal, int page, int size);
 
+    // ── Utilidades ───────────────────────────────────────────────
+    /** Devuelve el próximo número secuencial (solo vista previa; el real se asigna al crear). */
+    String proximoNumero(Integer idSucursal);
+
     // ── PDF ──────────────────────────────────────────────────────
     byte[] generarPdf(Integer idFactura);
 }

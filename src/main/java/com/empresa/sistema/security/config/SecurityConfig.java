@@ -35,11 +35,14 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
 
     private static final String[] PUBLIC_PATHS = {
+            // Autenticación (único endpoint de API público)
             "/api/auth/**",
+            // Swagger/OpenAPI (solo para desarrollo — restringir en producción)
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/api-docs/**",
             "/v3/api-docs/**",
+            // Vistas HTML (Thymeleaf — el HTML es público, los datos están en /api/ protegidos)
             "/login",
             "/",
             "/dashboard",
@@ -49,11 +52,12 @@ public class SecurityConfig {
             "/facturas",
             "/facturas/**",
             "/inventario",
+            "/usuarios",
+            // Recursos estáticos
             "/css/**",
             "/js/**",
-            "/favicon.ico",
-            "/usuarios",
-            "/api/roles/**"
+            "/favicon.ico"
+            // NOTA: /api/roles/** eliminado — requiere autenticación
     };
 
     @Bean

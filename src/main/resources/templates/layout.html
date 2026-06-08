@@ -42,7 +42,7 @@
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 24px;
         }
-        .topbar h1 { font-size: 20px; color: #12274B; font-weight: 700; }
+        .topbar h1 { font-size: 20px; color: #12274B; font-weight: 700; display:flex; align-items:center; gap:6px; }
         .user-badge {
             background: #D0EDFC; color: #12274B; padding: 6px 14px;
             border-radius: 20px; font-size: 13px; font-weight: 600;
@@ -75,6 +75,7 @@
         .btn {
             padding: 8px 16px; border-radius: 7px; border: none;
             font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
         }
         .btn-primary { background: #1468B1; color: white; }
         .btn-primary:hover { background: #12274B; }
@@ -109,19 +110,27 @@
         }
         .badge-success { background: #d1fae5; color: #065f46; }
         .badge-danger { background: #fee2e2; color: #991b1b; }
+        /* Bootstrap Icons alignment */
+        .btn i.bi { line-height: 1; font-size: 13px; }
+        .topbar h1 i.bi { font-size: 18px; line-height: 1; }
+        .btn-sm i.bi { font-size: 12px; }
+        .btn-logout i.bi { vertical-align: -1px; margin-right: 5px; }
+        .nav-item i.bi { font-size: 15px; min-width: 20px; text-align: center; flex-shrink: 0; }
     </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
 <div th:fragment="sidebar(active)">
     <div class="sidebar">
         <div class="sidebar-logo">
+            <div style="font-size:28px;margin-bottom:6px;"><i class="bi bi-receipt-cutoff" style="color:#4C97D2"></i></div>
             <h2>Sistema de Facturación</h2>
             <p>Quito · Ambato · Cuenca</p>
         </div>
         <div class="nav-menu" id="navMenu"></div>
         <div class="sidebar-footer">
             <div class="sidebar-user" id="sidebarUser"></div>
-            <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+            <button class="btn-logout" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</button>
         </div>
     </div>
     <script th:inline="javascript">
@@ -131,31 +140,57 @@
 
 <div th:fragment="scripts">
     <script>
-        const token = localStorage.getItem('token');
-        const username = localStorage.getItem('username');
-        const rol = localStorage.getItem('rol');
+        /* ── Utilidad: decodifica el payload del JWT (base64url) y revisa exp ── */
+        function jwtExpirado(t) {
+            try {
+                const payload = JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+                return payload.exp * 1000 < Date.now();
+            } catch(e) { return true; }
+        }
 
-        if (!token) window.location.href = '/login';
+        const token    = localStorage.getItem('token');
+        const username = localStorage.getItem('username');
+        const rol      = localStorage.getItem('rol');
+
+        /* ── Guardia de sesión: sin token o token expirado → login ── */
+        if (!token || jwtExpirado(token)) {
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+
+        /* ── Interceptor global de fetch: 401 → sesión expirada → login ── */
+        (function() {
+            const _fetch = window.fetch;
+            window.fetch = async function(...args) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+                const res = await _fetch.apply(this, args);
+                if (res.status === 401 && url.startsWith('/api/')) {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                }
+                return res;
+            };
+        })();
 
         const menuAdmin = `
         <div class="nav-section">Principal</div>
-        <a href="/dashboard" class="nav-item ${_active==='dashboard'?'active':''}">Dashboard</a>
-        <a href="/usuarios" class="nav-item ${_active==='usuarios'?'active':''}">Usuarios</a>
+        <a href="/dashboard" class="nav-item ${_active==='dashboard'?'active':''}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="/usuarios" class="nav-item ${_active==='usuarios'?'active':''}"><i class="bi bi-people-fill"></i> Usuarios</a>
         <div class="nav-section">Gestión</div>
-        <a href="/productos" class="nav-item ${_active==='productos'||_active==='inventario'?'active':''}">Inventario</a>
-        <a href="/clientes" class="nav-item ${_active==='clientes'?'active':''}">Clientes</a>
+        <a href="/productos" class="nav-item ${_active==='productos'||_active==='inventario'?'active':''}"><i class="bi bi-box-seam-fill"></i> Inventario</a>
+        <a href="/clientes" class="nav-item ${_active==='clientes'?'active':''}"><i class="bi bi-person-lines-fill"></i> Clientes</a>
         <div class="nav-section">Operaciones</div>
-        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}">Facturar</a>
-        <a href="/facturas" class="nav-item ${_active==='facturas'?'active':''}">Facturas</a>
+        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}"><i class="bi bi-file-earmark-plus-fill"></i> Facturar</a>
+        <a href="/facturas" class="nav-item ${_active==='facturas'?'active':''}"><i class="bi bi-receipt"></i> Facturas</a>
     `;
         const menuVendedor = `
         <div class="nav-section">Operaciones</div>
-        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}">Facturar</a>
-        <a href="/facturas" class="nav-item ${_active==='facturas'?'active':''}">Facturas</a>
+        <a href="/ventas" class="nav-item ${_active==='ventas'?'active':''}"><i class="bi bi-file-earmark-plus-fill"></i> Facturar</a>
+        <a href="/facturas" class="nav-item ${_active==='facturas'?'active':''}"><i class="bi bi-receipt"></i> Facturas</a>
     `;
         const menuBodeguero = `
         <div class="nav-section">Bodega</div>
-        <a href="/productos" class="nav-item ${_active==='productos'||_active==='inventario'?'active':''}">Inventario</a>
+        <a href="/productos" class="nav-item ${_active==='productos'||_active==='inventario'?'active':''}"><i class="bi bi-box-seam-fill"></i> Inventario</a>
     `;
 
         const rolDisplay = { ADMIN: 'Administrador', CAJERO: 'Vendedor', BODEGUERO: 'Bodeguero' };

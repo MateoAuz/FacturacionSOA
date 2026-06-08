@@ -6,13 +6,45 @@
     .badge-emitida  { background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
     .badge-anulada  { background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
     .acciones-cell { display:flex;gap:6px;flex-wrap:wrap;align-items:center; }
+    /* ── Modales ── */
+    .cm-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center; }
+    .cm-overlay.open { display:flex; }
+    #alertModal  { z-index:10000; }
+    .cm-box { background:white;border-radius:12px;padding:28px 32px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);text-align:center; }
+    .cm-icon  { font-size:40px;margin-bottom:10px; }
+    .cm-title { font-size:15px;font-weight:700;color:#12274B;margin-bottom:8px; }
+    .cm-msg   { font-size:13px;color:#555;margin-bottom:20px;line-height:1.5; }
+    .cm-btns  { display:flex;gap:10px;justify-content:center; }
 </style>
 <body>
 <div th:replace="~{layout :: sidebar('facturas')}"></div>
 
+<!-- ═══════════ MODAL: ALERTA ═══════════ -->
+<div class="cm-overlay" id="alertModal">
+    <div class="cm-box">
+        <div class="cm-icon" id="alertIcon"></div>
+        <div class="cm-title">Aviso</div>
+        <div class="cm-msg" id="alertMsg"></div>
+        <div class="cm-btns"><button class="btn btn-primary" onclick="cerrarAlert()">Aceptar</button></div>
+    </div>
+</div>
+
+<!-- ═══════════ MODAL: CONFIRMAR ════════ -->
+<div class="cm-overlay" id="confirmModal">
+    <div class="cm-box">
+        <div class="cm-icon" id="confirmIcon">❓</div>
+        <div class="cm-title" id="confirmTitle">Confirmar</div>
+        <div class="cm-msg" id="confirmMsg"></div>
+        <div class="cm-btns">
+            <button class="btn" onclick="cerrarConfirm()" style="background:#f0f4f8;color:#333">Cancelar</button>
+            <button class="btn btn-primary" id="confirmOkBtn" onclick="ejecutarConfirm()">Confirmar</button>
+        </div>
+    </div>
+</div>
+
 <div class="main">
     <div class="topbar">
-        <h1>Facturas</h1>
+        <h1><i class="bi bi-receipt"></i> Facturas</h1>
         <span class="user-badge" id="userDisplay"></span>
     </div>
 
@@ -52,6 +84,7 @@
                 <th>Estado</th>
                 <th>Acciones</th>
             </tr>
+            <!-- Fecha: creación siempre visible; emisión con hora para EMITIDA -->
             </thead>
             <tbody id="tablaFacturas">
             <tr><td colspan="7" style="text-align:center;color:#aaa;padding:30px">Cargando...</td></tr>
@@ -71,6 +104,20 @@
 
     let paginaActual = 0;
     let totalPaginas = 0;
+
+    /* ── Formato de fechas ── */
+    function fmtFecha(iso) {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'});
+    }
+    function fmtFechaHora(iso) {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return d.toLocaleDateString('es-EC', {day:'2-digit', month:'2-digit', year:'numeric'})
+             + ' '
+             + d.toLocaleTimeString('es-EC', {hour:'2-digit', minute:'2-digit'});
+    }
 
     function resetPagina() { paginaActual = 0; cargarDatos(); }
 
@@ -108,23 +155,31 @@
                 const badgeClass = { GUARDADA: 'badge-guardada', EMITIDA: 'badge-emitida', ANULADA: 'badge-anulada' }[f.estado] || 'badge-danger';
                 const estadoLabel = { GUARDADA: 'Guardada', EMITIDA: 'Emitida', ANULADA: 'Anulada' }[f.estado] || f.estado;
 
-                let acciones = `<a href="/facturas/${f.idFactura}" class="btn btn-primary btn-sm">Ver</a>`;
+                let acciones = `<a href="/facturas/${f.idFactura}" class="btn btn-primary btn-sm"><i class="bi bi-eye-fill"></i> Ver</a>`;
 
                 if (f.estado === 'GUARDADA') {
                     acciones += ` <button class="btn btn-sm" onclick="emitirFactura(${f.idFactura})"
-                        style="background:#d1fae5;color:#065f46;font-weight:700">Emitir</button>`;
+                        style="background:#d1fae5;color:#065f46;font-weight:700"><i class="bi bi-send-fill"></i> Emitir</button>`;
                 }
                 if (f.estado === 'EMITIDA') {
                     acciones += ` <button class="btn btn-sm" onclick="descargarPdf(${f.idFactura})"
-                        style="background:#fef3c7;color:#92400e;font-weight:700">PDF</button>`;
-                    acciones += ` <button class="btn btn-danger btn-sm" onclick="anularFactura(${f.idFactura})">Anular</button>`;
+                        style="background:#fef3c7;color:#92400e;font-weight:700"><i class="bi bi-file-earmark-pdf-fill"></i> PDF</button>`;
+                    acciones += ` <button class="btn btn-danger btn-sm" onclick="anularFactura(${f.idFactura})"><i class="bi bi-x-circle-fill"></i> Anular</button>`;
+                }
+
+                // Columna fecha: siempre muestra creación; si EMITIDA agrega hora de emisión
+                let fechaCell = `<div style="font-size:12px">${fmtFecha(f.fechaFactura)}</div>`;
+                if (f.estado === 'EMITIDA' && f.fechaEmision) {
+                    fechaCell += `<div style="font-size:11px;color:#059669;margin-top:2px;"><i class="bi bi-check-circle-fill"></i> ${fmtFechaHora(f.fechaEmision)}</div>`;
+                } else if (f.estado === 'ANULADA') {
+                    fechaCell += `<div style="font-size:11px;color:#991b1b;margin-top:2px;"><i class="bi bi-x-circle-fill"></i> Anulada</div>`;
                 }
 
                 return `<tr>
                     <td><strong>${f.numeroSecuencial}</strong></td>
                     <td>${f.cliente ?? '-'}</td>
                     <td style="font-size:12px">${f.sucursal ?? '-'}</td>
-                    <td style="font-size:12px">${f.fechaEmision ? new Date(f.fechaEmision).toLocaleDateString('es-EC') : '-'}</td>
+                    <td>${fechaCell}</td>
                     <td><strong>${f.total ? '$' + parseFloat(f.total).toFixed(2) : '-'}</strong></td>
                     <td><span class="${badgeClass}">${estadoLabel}</span></td>
                     <td><div class="acciones-cell">${acciones}</div></td>
@@ -153,14 +208,50 @@
 
     function irPagina(p) { if(p>=0&&p<totalPaginas){paginaActual=p;cargarDatos();} }
 
-    async function emitirFactura(id) {
-        if (!confirm('¿Emitir esta factura? Una vez emitida no se puede regresar a borrador.')) return;
-        const h = authHeaders();
-        try {
-            const res = await fetch(`/api/facturas/${id}/emitir`, {method:'POST', headers:h});
-            if (res.ok) cargarDatos();
-            else { const err = await res.json(); alert(err.mensaje ?? 'Error al emitir'); }
-        } catch(e) { alert('Error de conexión'); }
+    /* ── Modales helper ── */
+    const _iconMap = {
+        success: '<i class="bi bi-check-circle-fill" style="color:#059669;font-size:36px"></i>',
+        error:   '<i class="bi bi-x-circle-fill" style="color:#dc2626;font-size:36px"></i>',
+        warning: '<i class="bi bi-exclamation-triangle-fill" style="color:#d97706;font-size:36px"></i>',
+        info:    '<i class="bi bi-info-circle-fill" style="color:#1468B1;font-size:36px"></i>',
+        emit:    '<i class="bi bi-send-fill" style="color:#1468B1;font-size:36px"></i>',
+        anular:  '<i class="bi bi-exclamation-triangle-fill" style="color:#d97706;font-size:36px"></i>',
+        confirm: '<i class="bi bi-question-circle-fill" style="color:#6366f1;font-size:36px"></i>',
+    };
+    function mostrarAlerta(msg, type) {
+        document.getElementById('alertIcon').innerHTML = _iconMap[type] || _iconMap['info'];
+        document.getElementById('alertMsg').textContent = msg;
+        document.getElementById('alertModal').classList.add('open');
+    }
+    function cerrarAlert() { document.getElementById('alertModal').classList.remove('open'); }
+
+    let _confirmCb = null;
+    function mostrarConfirm(title, msg, iconType, okLabel, cb) {
+        document.getElementById('confirmIcon').innerHTML = _iconMap[iconType] || _iconMap['confirm'];
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMsg').textContent = msg;
+        document.getElementById('confirmOkBtn').textContent = okLabel || 'Confirmar';
+        _confirmCb = cb;
+        document.getElementById('confirmModal').classList.add('open');
+    }
+    function cerrarConfirm() { document.getElementById('confirmModal').classList.remove('open'); _confirmCb = null; }
+    function ejecutarConfirm() { cerrarConfirm(); if (_confirmCb) _confirmCb(); }
+
+    /* ── Acciones factura ── */
+    function emitirFactura(id) {
+        mostrarConfirm(
+            '¿Emitir esta factura?',
+            'Una vez emitida no se puede regresar a borrador.',
+            'emit', 'Emitir',
+            async () => {
+                const h = authHeaders();
+                try {
+                    const res = await fetch(`/api/facturas/${id}/emitir`, {method:'POST', headers:h});
+                    if (res.ok) cargarDatos();
+                    else { const err = await res.json(); mostrarAlerta(err.mensaje ?? 'Error al emitir', 'error'); }
+                } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
+            }
+        );
     }
 
     async function descargarPdf(id) {
@@ -173,18 +264,24 @@
                 const a = document.createElement('a');
                 a.href = url; a.download = `factura-${id}.pdf`; a.click();
                 window.URL.revokeObjectURL(url);
-            } else { alert('Error al generar el PDF'); }
-        } catch(e) { alert('Error de conexión'); }
+            } else { mostrarAlerta('Error al generar el PDF', 'error'); }
+        } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
     }
 
-    async function anularFactura(id) {
-        if (!confirm('¿Anular esta factura? Esta acción no se puede deshacer.')) return;
-        const h = authHeaders();
-        try {
-            const res = await fetch(`/api/facturas/${id}/anular`, {method:'PATCH', headers:h});
-            if (res.ok) cargarDatos();
-            else alert('Error al anular la factura');
-        } catch(e) { alert('Error de conexión'); }
+    function anularFactura(id) {
+        mostrarConfirm(
+            '¿Anular esta factura?',
+            'Esta acción no se puede deshacer y devolverá el stock al inventario.',
+            'anular', 'Anular',
+            async () => {
+                const h = authHeaders();
+                try {
+                    const res = await fetch(`/api/facturas/${id}/anular`, {method:'PATCH', headers:h});
+                    if (res.ok) cargarDatos();
+                    else { mostrarAlerta('Error al anular la factura', 'error'); }
+                } catch(e) { mostrarAlerta('Error de conexión', 'error'); }
+            }
+        );
     }
 
     cargarDatos();

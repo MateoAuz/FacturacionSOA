@@ -15,4 +15,5 @@ public interface ProductoService {
     List<ProductoResponseDTO> buscarPorCategoria(Integer idCategoria);
     List<ProductoResponseDTO> buscarPorNombre(String nombre);
     PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, Integer idCategoria, int page, int size);
+    PageResponseDTO<ProductoResponseDTO> buscarPaginado(String search, Integer idCategoria, Integer idSucursal, int page, int size);
 }

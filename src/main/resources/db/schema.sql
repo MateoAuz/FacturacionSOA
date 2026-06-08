@@ -196,6 +196,19 @@ CREATE TABLE factura (
     metodo_pago          ENUM('EFECTIVO','TARJETA','TRANSFERENCIA') NOT NULL DEFAULT 'EFECTIVO',
     estado               ENUM('GUARDADA','EMITIDA','ANULADA')       NOT NULL DEFAULT 'GUARDADA',
     observacion          VARCHAR(200)      NULL,
+    -- Snapshot auditoría (datos inmutables al momento de facturar) --
+    snap_cli_tipo_id        VARCHAR(10)   NULL COMMENT 'Tipo ID cliente al facturar',
+    snap_cli_identificacion VARCHAR(20)   NULL COMMENT 'Identificación cliente al facturar',
+    snap_cli_nombres        VARCHAR(60)   NULL COMMENT 'Nombres cliente al facturar',
+    snap_cli_apellidos      VARCHAR(60)   NULL COMMENT 'Apellidos cliente al facturar',
+    snap_cli_razon_social   VARCHAR(100)  NULL COMMENT 'Razón social cliente al facturar',
+    snap_cli_correo         VARCHAR(80)   NULL COMMENT 'Correo cliente al facturar',
+    snap_cli_telefono       VARCHAR(15)   NULL COMMENT 'Teléfono cliente al facturar',
+    snap_cli_direccion      VARCHAR(120)  NULL COMMENT 'Dirección cliente al facturar',
+    snap_usuario_nombre     VARCHAR(100)  NULL COMMENT 'Nombre vendedor al facturar',
+    snap_sucursal_nombre    VARCHAR(80)   NULL COMMENT 'Nombre sucursal al facturar',
+    snap_sucursal_ciudad    VARCHAR(80)   NULL COMMENT 'Ciudad sucursal al facturar',
+    snap_iva_porcentaje     DECIMAL(5,2)  NULL COMMENT 'Porcentaje IVA aplicado',
     -- SRI Fase 2 ------------------------------------------------
     fecha_emision        DATETIME          NULL,
     pdf_path             VARCHAR(255)      NULL,
@@ -226,6 +239,9 @@ CREATE TABLE detalle_factura (
     cantidad        INT           NOT NULL,
     precio_unitario DECIMAL(12,2) NOT NULL,
     subtotal_linea  DECIMAL(12,2) NOT NULL,
+    -- Snapshot auditoría (datos inmutables al momento de facturar) --
+    snap_producto_nombre VARCHAR(100) NULL COMMENT 'Nombre del producto al facturar',
+    snap_producto_codigo VARCHAR(30)  NULL COMMENT 'Código del producto al facturar',
     CONSTRAINT pk_detalle_factura          PRIMARY KEY (id_detalle),
     CONSTRAINT fk_detalle_factura_factura  FOREIGN KEY (id_factura)  REFERENCES factura  (id_factura)  ON DELETE CASCADE,
     CONSTRAINT fk_detalle_factura_producto FOREIGN KEY (id_producto) REFERENCES producto (id_producto)

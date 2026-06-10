@@ -186,9 +186,9 @@
             <div class="fr c2" style="margin-bottom:12px;">
                 <div class="fg">
                     <label>Teléfono</label>
-                    <input type="text" id="ncTelefono" class="nc-inp" placeholder="0999999999" maxlength="15"
+                    <input type="text" id="ncTelefono" class="nc-inp" placeholder="0999999999" maxlength="10"
                            style="width:100%;padding:9px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;box-sizing:border-box;"
-                           oninput="this.value=this.value.replace(/[^0-9+]/g,'');ncLimpiarErr('ncTelefonoErr')"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'');ncLimpiarErr('ncTelefonoErr')"
                            onblur="ncValidarTelefono()"/>
                     <span class="nc-err" id="ncTelefonoErr"></span>
                 </div>
@@ -463,10 +463,8 @@
                             <option value="TARJETA">Tarjeta</option>
                             <option value="TRANSFERENCIA">Transferencia</option>
                         </select>
-                        <input type="number" id="pagoMonto" placeholder="0.00" step="0.01" min="0.01"
-                               style="width:90px;padding:8px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;"
-                               oninput="limitarDecimalesPago(this);actualizarVuelto()"
-                               onkeydown="if(event.key==='Enter')agregarPago()"/>
+                        <input type="text" id="pagoMonto" placeholder="0.00" autocomplete="off" inputmode="decimal"
+                               style="width:90px;padding:8px 10px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;outline:none;color:#12274B;text-align:right;"/>
                         <button class="btn btn-primary" onclick="agregarPago()" style="padding:8px 12px">+</button>
                     </div>
                     <div id="pagosList"></div>
@@ -805,8 +803,8 @@ function ncValidarCorreo() {
 function ncValidarTelefono() {
     const val = document.getElementById('ncTelefono').value.trim();
     if (!val) { ncMostrarErr('ncTelefonoErr', ''); return true; }
-    const ok = /^[+]?\d{7,15}$/.test(val);
-    ncMostrarErr('ncTelefonoErr', ok ? '' : 'Teléfono: 7-15 dígitos (puede iniciar con +)');
+    const ok = /^\d{10}$/.test(val);
+    ncMostrarErr('ncTelefonoErr', ok ? '' : 'Teléfono: debe tener exactamente 10 dígitos');
     return ok;
 }
 
@@ -1168,10 +1166,10 @@ function actualizarTotales() {
 ════════════════════════════════════════════ */
 function agregarPago() {
     const metodo = document.getElementById('pagoMetodo').value;
-    const monto  = parseFloat(document.getElementById('pagoMonto').value);
+    const monto  = posGetValue();
     if (!monto || monto <= 0) { mostrarAlert('Monto inválido','Ingresa un monto mayor a 0'); return; }
     pagos.push({metodo, monto});
-    document.getElementById('pagoMonto').value = '';
+    posReset();
     renderPagos();
     guardadoAutomatico();
 }
@@ -1299,7 +1297,7 @@ function nuevaFactura() {
     document.getElementById('selProductoPrecio').value  = '';
     document.getElementById('selCantidad').value        = 1;
     document.getElementById('stockInfo').textContent    = 'Selecciona un producto';
-    renderDetalles(); renderPagos();
+    renderDetalles(); renderPagos(); posReset();
     document.getElementById('pantallaExito').style.display = 'none';
     document.getElementById('mainContent').style.display   = 'block';
     const btn = document.getElementById('btnGuardar');
@@ -1484,9 +1482,78 @@ async function enviarSolicitudStock() {
 
 
 /* ════════════════════════════════════════════
+   INPUT PAGO — ESTILO POS
+   Dígitos entran de derecha a izquierda (siempre 2 decimales).
+   Tecla '.' activa modo decimal manual para escribir normalmente.
+════════════════════════════════════════════ */
+const _pos = { digits: '', manual: false, str: '' };
+
+function posReset() {
+    _pos.digits = ''; _pos.manual = false; _pos.str = '';
+    const el = document.getElementById('pagoMonto');
+    if (el) el.value = '';
+}
+
+function posGetValue() {
+    if (_pos.manual) return parseFloat(_pos.str) || 0;
+    if (!_pos.digits) return 0;
+    const p = _pos.digits.padStart(3, '0');
+    return parseFloat(parseInt(p.slice(0, -2), 10) + '.' + p.slice(-2));
+}
+
+function _posDisplay() {
+    const el = document.getElementById('pagoMonto');
+    if (!el) return;
+    if (_pos.manual) { el.value = _pos.str; return; }
+    if (!_pos.digits) { el.value = ''; return; }
+    const p = _pos.digits.padStart(3, '0');
+    el.value = parseInt(p.slice(0, -2), 10) + '.' + p.slice(-2);
+}
+
+function initPosInput() {
+    const el = document.getElementById('pagoMonto');
+    if (!el) return;
+    el.addEventListener('keydown', function(e) {
+        if (e.key >= '0' && e.key <= '9') {
+            e.preventDefault();
+            if (_pos.manual) {
+                const dot = _pos.str.indexOf('.');
+                if (dot === -1 || _pos.str.length - dot <= 2) _pos.str += e.key;
+            } else {
+                if (_pos.digits.length < 9) _pos.digits += e.key;
+            }
+            _posDisplay(); actualizarVuelto();
+        } else if (e.key === '.') {
+            e.preventDefault();
+            if (!_pos.manual) {
+                _pos.manual = true;
+                _pos.str = '0.';
+                _posDisplay();
+            }
+        } else if (e.key === 'Backspace') {
+            e.preventDefault();
+            if (_pos.manual) {
+                _pos.str = _pos.str.slice(0, -1);
+                if (!_pos.str.includes('.')) { _pos.manual = false; _pos.digits = _pos.str; _pos.str = ''; }
+            } else {
+                _pos.digits = _pos.digits.slice(0, -1);
+            }
+            _posDisplay(); actualizarVuelto();
+        } else if (e.key === 'Delete') {
+            e.preventDefault(); posReset(); actualizarVuelto();
+        } else if (e.key === 'Enter') {
+            e.preventDefault(); agregarPago();
+        } else if (e.key !== 'Tab') {
+            e.preventDefault();
+        }
+    });
+}
+
+/* ════════════════════════════════════════════
    ARRANQUE
 ════════════════════════════════════════════ */
 inicializar();
+initPosInput();
     document.getElementById('clBuscador').addEventListener('input', function() {
         document.getElementById('clBuscadorClear').style.display = this.value ? 'block' : 'none';
     });

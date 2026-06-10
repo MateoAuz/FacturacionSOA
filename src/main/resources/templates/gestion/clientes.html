@@ -149,8 +149,8 @@
                 </div>
                 <div class="form-group">
                     <label>Teléfono</label>
-                    <input type="text" id="telefono" placeholder="0999999999" maxlength="15"
-                           oninput="validarTelefono()" onblur="validarTelefono()"/>
+                    <input type="text" id="telefono" placeholder="0999999999" maxlength="10"
+                           oninput="this.value=this.value.replace(/[^0-9]/g,'');validarTelefono()" onblur="validarTelefono()"/>
                     <span class="field-error" id="err-telefono"></span>
                 </div>
             </div>
@@ -392,8 +392,8 @@
     function validarTelefono() {
         const val = document.getElementById('telefono').value.trim();
         if (!val) { mostrarError('err-telefono',''); return true; }
-        const ok = /^[+]?\d{7,15}$/.test(val);
-        mostrarError('err-telefono', ok ? '' : 'Teléfono: 7-15 dígitos (puede iniciar con +)');
+        const ok = /^\d{10}$/.test(val);
+        mostrarError('err-telefono', ok ? '' : 'Teléfono: debe tener exactamente 10 dígitos');
         return ok;
     }
 
@@ -487,7 +487,17 @@
             tipoSel.disabled  = true;
         }
 
-        // Campo identificación: siempre bloqueado en edición
+        // Cuando cambia el tipo en edición, actualiza automáticamente la identificación
+        tipoSel.onchange = function() {
+            const inp = document.getElementById('identificacion');
+            if (this.value === 'RUC' && tipoOriginal === 'CEDULA') {
+                inp.value = identificacionOriginal + '001';
+            } else if (this.value === 'CEDULA' && tipoOriginal === 'RUC') {
+                inp.value = identificacionOriginal.slice(0, -3);
+            }
+        };
+
+        // Campo identificación: bloqueado en edición (solo cambia via el select de tipo)
         const inp = document.getElementById('identificacion');
         inp.value    = identificacionOriginal;
         inp.readOnly = true;

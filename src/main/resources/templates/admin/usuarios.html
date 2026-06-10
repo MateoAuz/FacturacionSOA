@@ -69,7 +69,7 @@
             </select>
             <div style="position:relative;flex:1;min-width:200px;">
                 <input type="text" id="buscador" placeholder="Buscar usuario..."
-                   oninput="resetPagina()"
+                   oninput="resetPagina()" autocomplete="off"
                    style="padding:8px 12px;border:1.5px solid #D0EDFC;border-radius:7px;font-size:13px;width:100%;box-sizing:border-box;padding-right:28px;outline:none;color:#12274B"/>
                 <button id="buscadorClear" onclick="document.getElementById('buscador').value='';document.getElementById('buscadorClear').style.display='none';resetPagina()" title="Limpiar búsqueda" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#aaa;font-size:17px;line-height:1;padding:0;display:none;">&#x2715;</button>
             </div>

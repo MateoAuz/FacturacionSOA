@@ -63,6 +63,20 @@ public class ClienteServiceImpl implements ClienteService {
     @Override
     public ClienteResponseDTO actualizar(Integer id, ClienteRequestDTO dto) {
         Cliente c = clienteRepository.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado: " + id));
+
+        // Si cambió la identificación, verificar que no exista en otro cliente
+        String nuevaId = dto.getIdentificacion();
+        if (nuevaId != null && !nuevaId.equals(c.getIdentificacion())) {
+            clienteRepository.findByIdentificacion(nuevaId).ifPresent(existing -> {
+                if (!existing.getIdCliente().equals(id)) {
+                    throw new RuntimeException(
+                        "Ya existe un cliente registrado con la identificación " + nuevaId);
+                }
+            });
+            c.setIdentificacion(nuevaId);
+            c.setTipoIdentificacion(Cliente.TipoIdentificacion.valueOf(dto.getTipoIdentificacion()));
+        }
+
         c.setNombres(dto.getNombres());
         c.setApellidos(dto.getApellidos());
         c.setDireccion(dto.getDireccion());

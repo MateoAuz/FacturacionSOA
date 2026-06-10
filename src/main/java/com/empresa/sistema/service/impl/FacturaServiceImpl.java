@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
@@ -154,21 +155,31 @@ public class FacturaServiceImpl implements FacturaService {
                 .orElseThrow(() -> new RuntimeException("Factura no encontrada: " + id)), true);
     }
 
-    @Override
-    public void emitirFactura(Integer id) {
+    /**
+     * Marca la factura como EMITIDA en su propia transacción, para que el cambio
+     * de estado quede comprometido incluso si la generación del PDF o el envío de
+     * correo fallan más adelante.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void cambiarEstadoEmitida(Integer id) {
         Factura f = facturaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Factura no encontrada: " + id));
         if (f.getEstado() != Factura.EstadoFactura.GUARDADA)
             throw new RuntimeException("Solo se pueden emitir facturas en estado GUARDADA");
-
-        // 1. Cambiar estado y guardar (esto SÍ debe ser transaccional)
         f.setEstado(Factura.EstadoFactura.EMITIDA);
         f.setFechaEmision(LocalDateTime.now());
         facturaRepository.save(f);
+    }
 
-        // 2. Generar PDF y enviar correo — aislado del rollback
-        //    Si el correo o el PDF fallan, la factura ya quedó EMITIDA.
+    @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void emitirFactura(Integer id) {
+        // 1. Commit de estado en transacción propia — garantiza persistencia
+        cambiarEstadoEmitida(id);
+
+        // 2. PDF y correo fuera de cualquier transacción activa
         try {
+            Factura f = facturaRepository.findById(id).orElseThrow();
             List<DetalleVenta> detalles = detalleRepository.findByFactura_IdFactura(id);
             byte[] pdf = buildPdf(f, detalles);
             emailService.enviarFactura(f, detalles, pdf);

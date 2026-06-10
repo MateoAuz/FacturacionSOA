@@ -42,7 +42,12 @@ public class SolicitudStockServiceImpl implements SolicitudStockService {
 
         Sucursal sucursalSolicitante = solicitante.getSucursal();
         if (sucursalSolicitante == null) {
-            throw new RuntimeException("Tu usuario no tiene una sucursal asignada. Contacta al administrador.");
+            // ADMIN no tiene sucursal fija — usar la que envió el frontend
+            if (dto.getIdSucursalSolicitante() == null) {
+                throw new RuntimeException("Selecciona la sucursal desde la que solicitas el stock.");
+            }
+            sucursalSolicitante = sucursalRepository.findById(dto.getIdSucursalSolicitante())
+                    .orElseThrow(() -> new RuntimeException("Sucursal solicitante no encontrada"));
         }
 
         if (sucursalSolicitante.getIdSucursal().equals(sucursalProveedora.getIdSucursal())) {

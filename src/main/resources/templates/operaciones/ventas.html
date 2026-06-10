@@ -1456,9 +1456,11 @@ async function enviarSolicitudStock() {
 
     try {
         const h = authHeaders();
+        const idSucursalSolicitante = parseInt(document.getElementById('ventaSucursal').value) || null;
         const body = {
             idProducto: _solicitudIdProducto,
             idSucursalProveedora,
+            idSucursalSolicitante,
             cantidad,
             observacion: observacion || null
         };

@@ -293,4 +293,54 @@ public class EmailServiceImpl implements EmailService {
                 .correo("noreply@empresa.com").build();
     }
 
-    // ── Solicitud de stock inter-s
+
+    // ── Solicitud de stock inter-sucursal ────────────────────────────────────
+    @Override
+    public void enviarSolicitudStock(SolicitudStock solicitud, List<Usuario> bodegueros) {
+        if (bodegueros == null || bodegueros.isEmpty()) return;
+        String subject = "SOLICITUD DE STOCK - " + solicitud.getProducto().getNombre();
+        String html = buildSolicitudHtml(solicitud);
+        for (Usuario bodeguero : bodegueros) {
+            if (bodeguero.getCorreo() == null || bodeguero.getCorreo().isBlank()) continue;
+            if (resendApiKey != null && !resendApiKey.isBlank()) {
+                sendViaResend(bodeguero.getCorreo(), subject, html, null, null);
+            } else {
+                try {
+                    MimeMessage msg = mailSender.createMimeMessage();
+                    MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+                    helper.setFrom(smtpUsername, "Sistema de Facturación");
+                    helper.setTo(bodeguero.getCorreo());
+                    helper.setSubject(subject);
+                    helper.setText(html, true);
+                    mailSender.send(msg);
+                    log.info("Solicitud de stock enviada a {}", bodeguero.getCorreo());
+                } catch (Exception e) {
+                    log.warn("Error enviando solicitud a {}: {}", bodeguero.getCorreo(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    private String buildSolicitudHtml(SolicitudStock s) {
+        String prod    = s.getProducto().getNombre();
+        String cant    = String.valueOf(s.getCantidad());
+        String solicit = s.getSucursalSolicitante().getNombre();
+        String user    = s.getUsuarioSolicitante().getNombre() + " " + s.getUsuarioSolicitante().getApellido();
+        String obs     = s.getObservacion() != null ? s.getObservacion() : "-";
+        return "<div style='font-family:Segoe UI,sans-serif;max-width:520px;margin:auto'>"
+             + "<div style='background:#1468B1;padding:18px 24px;border-radius:8px 8px 0 0'>"
+             + "<h2 style='color:white;margin:0;font-size:16px'>SISTEMA DE FACTURACION</h2></div>"
+             + "<div style='background:#f8fafc;padding:24px;border-radius:0 0 8px 8px'>"
+             + "<h3 style='color:#12274B;margin-top:0'>Nueva Solicitud de Stock</h3>"
+             + "<table style='width:100%;font-size:14px;border-collapse:collapse'>"
+             + "<tr><td style='padding:6px 0;color:#888;width:160px'>Producto:</td><td><strong>" + prod + "</strong></td></tr>"
+             + "<tr><td style='padding:6px 0;color:#888'>Cantidad:</td><td>" + cant + "</td></tr>"
+             + "<tr><td style='padding:6px 0;color:#888'>Sucursal solicitante:</td><td>" + solicit + "</td></tr>"
+             + "<tr><td style='padding:6px 0;color:#888'>Solicitado por:</td><td>" + user + "</td></tr>"
+             + "<tr><td style='padding:6px 0;color:#888'>Observacion:</td><td>" + obs + "</td></tr>"
+             + "</table>"
+             + "<p style='margin-top:20px;color:#666;font-size:12px'>Ingrese al sistema para aceptar o rechazar esta solicitud.</p>"
+             + "</div></div>";
+    }
+
+}

@@ -152,4 +152,6 @@ public class InventarioServiceImpl implements InventarioService {
                 .cantidad(i.getCantidad())
                 .estadoStock(estado)
                 .ultimaActualizacion(i.getUltimaActualizacion())
-               
+                               .build();
+    }
+}

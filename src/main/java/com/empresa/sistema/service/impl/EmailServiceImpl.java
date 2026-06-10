@@ -251,6 +251,7 @@ public class EmailServiceImpl implements EmailService {
             try {
                 MimeMessage msg = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+                helper.setFrom(smtpUsername, "Sistema de Facturación");
                 helper.setTo(bodeguero.getCorreo());
                 helper.setSubject(subject);
                 helper.setText(html, true);

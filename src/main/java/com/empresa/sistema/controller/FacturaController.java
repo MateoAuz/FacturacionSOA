@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.util.Map;
 import java.util.List;
 
 @RestController
@@ -67,9 +68,10 @@ public class FacturaController {
     @PostMapping("/{id}/emitir")
     @PreAuthorize("hasAnyRole('ADMIN','CAJERO')")
     @Operation(summary = "Emitir factura (GUARDADA → EMITIDA)")
-    public ResponseEntity<ApiResponseDTO<Void>> emitir(@PathVariable Integer id) {
-        facturaService.emitirFactura(id);
-        return ResponseEntity.ok(ApiResponseDTO.ok("Factura emitida", null));
+    public ResponseEntity<ApiResponseDTO<Map<String,Object>>> emitir(@PathVariable Integer id) {
+        boolean emailEnviado = facturaService.emitirFactura(id);
+        return ResponseEntity.ok(ApiResponseDTO.ok("Factura emitida",
+                Map.of("emailEnviado", emailEnviado)));
     }
 
     @PatchMapping("/{id}/anular")

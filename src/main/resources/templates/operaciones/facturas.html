@@ -300,8 +300,13 @@
                 try {
                     const res = await fetch(`/api/facturas/${id}/emitir`, {method:'POST', headers:h});
                     if (res.ok) {
+                        const body = await res.json();
                         await cargarDatos();
-                        mostrarAlerta('Factura emitida correctamente. El correo se envió al cliente.', 'success');
+                        if (body.datos?.emailEnviado) {
+                            mostrarAlerta('Factura emitida correctamente. El correo se envió al cliente.', 'success');
+                        } else {
+                            mostrarAlerta('Factura emitida, pero el correo no pudo enviarse. Verifique la configuración de correo.', 'warning');
+                        }
                     } else {
                         const err = await res.json();
                         await cargarDatos(); // restaurar botones

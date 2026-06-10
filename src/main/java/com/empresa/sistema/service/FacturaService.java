@@ -9,7 +9,8 @@ public interface FacturaService {
     // ── Ciclo de vida de la factura ──────────────────────────────
     FacturaResponseDTO crear(FacturaRequestDTO dto);
     FacturaResponseDTO buscarPorId(Integer id);
-    void emitirFactura(Integer id);
+    /** Emite la factura y devuelve true si el correo fue enviado, false si falló. */
+    boolean emitirFactura(Integer id);
     void anularFactura(Integer id);
 
     // ── Consultas ────────────────────────────────────────────────

@@ -173,7 +173,7 @@ public class FacturaServiceImpl implements FacturaService {
 
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public void emitirFactura(Integer id) {
+    public boolean emitirFactura(Integer id) {
         // 1. Commit de estado en transacción propia — garantiza persistencia
         cambiarEstadoEmitida(id);
 
@@ -183,8 +183,10 @@ public class FacturaServiceImpl implements FacturaService {
             List<DetalleVenta> detalles = detalleRepository.findByFactura_IdFactura(id);
             byte[] pdf = buildPdf(f, detalles);
             emailService.enviarFactura(f, detalles, pdf);
+            return true;
         } catch (Exception e) {
             log.warn("Factura #{} emitida, pero el correo/PDF falló: {}", id, e.getMessage());
+            return false;
         }
     }
 

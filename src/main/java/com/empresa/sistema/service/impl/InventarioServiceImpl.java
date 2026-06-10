@@ -60,6 +60,7 @@ public class InventarioServiceImpl implements InventarioService {
     }
 
     @Override
+    @Transactional
     public InventarioResponseDTO actualizarStock(InventarioRequestDTO dto) {
         // ── Restricción BODEGUERO: solo puede editar su propia sucursal ──
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -151,6 +152,4 @@ public class InventarioServiceImpl implements InventarioService {
                 .cantidad(i.getCantidad())
                 .estadoStock(estado)
                 .ultimaActualizacion(i.getUltimaActualizacion())
-                .build();
-    }
-}
+               

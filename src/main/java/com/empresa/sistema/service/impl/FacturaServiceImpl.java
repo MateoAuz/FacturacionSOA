@@ -756,17 +756,4 @@ public class FacturaServiceImpl implements FacturaService {
                 .idSucursal(f.getSucursal().getIdSucursal())
                 .fechaFactura(f.getFechaFactura())
                 .subtotal(f.getSubtotal())
-                .ivaValor(f.getIvaValor())
-                .total(f.getTotal())
-                .metodoPago(f.getMetodoPago().name())
-                .estado(f.getEstado().name())
-                .estadoSri(f.getEstadoSri().name())
-                .observacion(f.getObservacion())
-                .fechaEmision(f.getFechaEmision())
-                .pdfPath(f.getPdfPath())
-                .claveAcceso(f.getClaveAcceso())
-                .detalles(detalles)
-                .pagos(pagos)
-                .build();
-    }
-}
+                .ivaValor(

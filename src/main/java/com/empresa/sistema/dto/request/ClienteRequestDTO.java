@@ -9,6 +9,7 @@ public class ClienteRequestDTO {
     private String apellidos;
     private String razonSocial;
     private String direccion;
+    @Pattern(regexp = "^\\d{10}$|^$", message = "Teléfono: debe tener exactamente 10 dígitos")
     private String telefono;
     @NotBlank(message = "El correo electrónico es obligatorio")
     @Email(message = "Formato de correo inválido") private String correo;

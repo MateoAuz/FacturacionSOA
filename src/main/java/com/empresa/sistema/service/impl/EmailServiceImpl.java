@@ -55,6 +55,10 @@ public class EmailServiceImpl implements EmailService {
     @Value("${RESEND_FROM:onboarding@resend.dev}")
     private String resendFrom;
 
+    /** Si se configura, redirige TODOS los correos a esta dirección (útil en desarrollo/demo sin dominio verificado) */
+    @Value("${EMAIL_REDIRECT_TO:}")
+    private String emailRedirectTo;
+
     private static final DateTimeFormatter FMT_FECHA =
             DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", new Locale("es", "EC"));
 
@@ -105,6 +109,10 @@ public class EmailServiceImpl implements EmailService {
             log.warn("[EmailService] Cliente {} no tiene correo – factura {}",
                     factura.getCliente().getIdentificacion(), factura.getNumeroSecuencial());
             return;
+        }
+        if (emailRedirectTo != null && !emailRedirectTo.isBlank()) {
+            log.info("[EmailService] EMAIL_REDIRECT_TO activo: redirigiendo {} → {}", correoCliente, emailRedirectTo);
+            correoCliente = emailRedirectTo;
         }
 
         ConfiguracionEmpresa empresa = empresaRepository.findFirstBy()

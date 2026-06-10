@@ -37,6 +37,9 @@ public class EmailServiceImpl implements EmailService {
     @Value("${app.base-url:}")
     private String baseUrl;
 
+    @Value("${spring.mail.username}")
+    private String smtpUsername;
+
     private static final DateTimeFormatter FMT_FECHA =
             DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", new Locale("es", "EC"));
 
@@ -56,11 +59,12 @@ public class EmailServiceImpl implements EmailService {
             MimeMessage msg = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
 
-            String fromAddr = empresa.getCorreo() != null ? empresa.getCorreo() : "noreply@empresa.com";
+            // Siempre usar el correo SMTP autenticado como remitente
+            // (Gmail rechaza si fromAddr != cuenta autenticada)
             String fromName = empresa.getNombreComercial() != null
                     ? empresa.getNombreComercial() : empresa.getRazonSocial();
 
-            helper.setFrom(fromAddr, fromName);
+            helper.setFrom(smtpUsername, fromName);
             helper.setTo(correoCliente);
             helper.setSubject("Factura " + factura.getNumeroSecuencial() + " de " + fromName);
             helper.setText(buildHtml(factura, empresa), true);

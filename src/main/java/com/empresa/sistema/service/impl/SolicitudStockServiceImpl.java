@@ -41,6 +41,9 @@ public class SolicitudStockServiceImpl implements SolicitudStockService {
                 .orElseThrow(() -> new RuntimeException("Sucursal proveedora no encontrada"));
 
         Sucursal sucursalSolicitante = solicitante.getSucursal();
+        if (sucursalSolicitante == null) {
+            throw new RuntimeException("Tu usuario no tiene una sucursal asignada. Contacta al administrador.");
+        }
 
         if (sucursalSolicitante.getIdSucursal().equals(sucursalProveedora.getIdSucursal())) {
             throw new RuntimeException("No puedes solicitar stock a tu propia sucursal");
@@ -163,6 +166,7 @@ public class SolicitudStockServiceImpl implements SolicitudStockService {
     public long contarPendientes(String username) {
         Usuario bodeguero = usuarioRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+        if (bodeguero.getSucursal() == null) return 0;
         return solicitudRepository.countPendientesByProveedora(bodeguero.getSucursal().getIdSucursal());
     }
 

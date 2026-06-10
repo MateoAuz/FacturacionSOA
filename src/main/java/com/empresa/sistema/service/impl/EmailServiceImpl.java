@@ -15,7 +15,13 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import com.empresa.sistema.entity.SolicitudStock;
@@ -23,7 +29,8 @@ import com.empresa.sistema.entity.Usuario;
 
 /**
  * Implementación real activa cuando app.mail.enabled=true.
- * Envía un correo HTML minimalista con el PDF adjunto.
+ * Si RESEND_API_KEY está configurado, envía vía API HTTP de Resend (sin SMTP).
+ * En otro caso usa JavaMailSender (SMTP).
  */
 @Slf4j
 @Service
@@ -40,8 +47,56 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.username}")
     private String smtpUsername;
 
+    /** Si se configura, usa Resend API en lugar de SMTP */
+    @Value("${RESEND_API_KEY:}")
+    private String resendApiKey;
+
+    /** Dirección "from" cuando se usa Resend (debe ser un dominio verificado en resend.com) */
+    @Value("${RESEND_FROM:onboarding@resend.dev}")
+    private String resendFrom;
+
     private static final DateTimeFormatter FMT_FECHA =
             DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", new Locale("es", "EC"));
+
+    // ── Resend HTTP helper ──────────────────────────────────────────────────
+    private boolean sendViaResend(String to, String subject, String html, byte[] pdfBytes, String pdfName) {
+        try {
+            String attachmentJson = "";
+            if (pdfBytes != null && pdfBytes.length > 0) {
+                String b64 = Base64.getEncoder().encodeToString(pdfBytes);
+                attachmentJson = """
+                        ,"attachments":[{"filename":"%s","content":"%s"}]
+                        """.formatted(pdfName, b64);
+            }
+            // Escapar comillas en HTML para JSON
+            String htmlEscaped = html.replace("\\", "\\\\").replace("\"", "\\\"")
+                                     .replace("\n", "\\n").replace("\r", "");
+            String json = """
+                    {"from":"%s","to":["%s"],"subject":"%s","html":"%s"%s}
+                    """.formatted(resendFrom, to, subject, htmlEscaped, attachmentJson).strip();
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10)).build();
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.resend.com/emails"))
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .timeout(Duration.ofSeconds(15))
+                    .build();
+            HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() >= 200 && resp.statusCode() < 300) {
+                log.info("[Resend] Correo enviado a {} — status {}", to, resp.statusCode());
+                return true;
+            } else {
+                log.error("[Resend] Error {} enviando a {}: {}", resp.statusCode(), to, resp.body());
+                return false;
+            }
+        } catch (Exception e) {
+            log.error("[Resend] Excepción enviando a {}: {}", to, e.getMessage());
+            return false;
+        }
+    }
 
     @Override
     public void enviarFactura(Factura factura, List<DetalleVenta> detalles, byte[] pdfBytes) {
@@ -55,32 +110,30 @@ public class EmailServiceImpl implements EmailService {
         ConfiguracionEmpresa empresa = empresaRepository.findFirstBy()
                 .orElse(defaultEmpresa());
 
-        try {
-            MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+        String fromName = empresa.getNombreComercial() != null
+                ? empresa.getNombreComercial() : empresa.getRazonSocial();
+        String subject  = "Factura " + factura.getNumeroSecuencial() + " de " + fromName;
+        String html     = buildHtml(factura, empresa);
+        String pdfName  = "Factura_" + factura.getNumeroSecuencial() + ".pdf";
 
-            // Siempre usar el correo SMTP autenticado como remitente
-            // (Gmail rechaza si fromAddr != cuenta autenticada)
-            String fromName = empresa.getNombreComercial() != null
-                    ? empresa.getNombreComercial() : empresa.getRazonSocial();
-
-            helper.setFrom(smtpUsername, fromName);
-            helper.setTo(correoCliente);
-            helper.setSubject("Factura " + factura.getNumeroSecuencial() + " de " + fromName);
-            helper.setText(buildHtml(factura, empresa), true);
-
-            if (pdfBytes != null && pdfBytes.length > 0) {
-                helper.addAttachment(
-                        "Factura_" + factura.getNumeroSecuencial() + ".pdf",
-                        new ByteArrayResource(pdfBytes),
-                        "application/pdf");
+        if (resendApiKey != null && !resendApiKey.isBlank()) {
+            sendViaResend(correoCliente, subject, html, pdfBytes, pdfName);
+        } else {
+            try {
+                MimeMessage msg = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(msg, true, "UTF-8");
+                helper.setFrom(smtpUsername, fromName);
+                helper.setTo(correoCliente);
+                helper.setSubject(subject);
+                helper.setText(html, true);
+                if (pdfBytes != null && pdfBytes.length > 0) {
+                    helper.addAttachment(pdfName, new ByteArrayResource(pdfBytes), "application/pdf");
+                }
+                mailSender.send(msg);
+                log.info("[EmailService] Factura {} enviada a {}", factura.getNumeroSecuencial(), correoCliente);
+            } catch (Exception e) {
+                log.error("[EmailService] Error enviando factura {}: {}", factura.getNumeroSecuencial(), e.getMessage(), e);
             }
-
-            mailSender.send(msg);
-            log.info("[EmailService] Factura {} enviada a {}", factura.getNumeroSecuencial(), correoCliente);
-
-        } catch (Exception e) {
-            log.error("[EmailService] Error enviando factura {}: {}", factura.getNumeroSecuencial(), e.getMessage(), e);
         }
     }
 
@@ -248,17 +301,21 @@ public class EmailServiceImpl implements EmailService {
         String html = buildSolicitudHtml(solicitud);
         for (Usuario bodeguero : bodegueros) {
             if (bodeguero.getCorreo() == null || bodeguero.getCorreo().isBlank()) continue;
-            try {
-                MimeMessage msg = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
-                helper.setFrom(smtpUsername, "Sistema de Facturación");
-                helper.setTo(bodeguero.getCorreo());
-                helper.setSubject(subject);
-                helper.setText(html, true);
-                mailSender.send(msg);
-                log.info("Solicitud de stock enviada a {}", bodeguero.getCorreo());
-            } catch (Exception e) {
-                log.warn("Error enviando solicitud a {}: {}", bodeguero.getCorreo(), e.getMessage());
+            if (resendApiKey != null && !resendApiKey.isBlank()) {
+                sendViaResend(bodeguero.getCorreo(), subject, html, null, null);
+            } else {
+                try {
+                    MimeMessage msg = mailSender.createMimeMessage();
+                    MimeMessageHelper helper = new MimeMessageHelper(msg, false, "UTF-8");
+                    helper.setFrom(smtpUsername, "Sistema de Facturación");
+                    helper.setTo(bodeguero.getCorreo());
+                    helper.setSubject(subject);
+                    helper.setText(html, true);
+                    mailSender.send(msg);
+                    log.info("Solicitud de stock enviada a {}", bodeguero.getCorreo());
+                } catch (Exception e) {
+                    log.warn("Error enviando solicitud a {}: {}", bodeguero.getCorreo(), e.getMessage());
+                }
             }
         }
     }

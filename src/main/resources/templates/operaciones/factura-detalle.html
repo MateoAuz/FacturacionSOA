@@ -160,6 +160,7 @@
                             <div class="info-section-title">Cliente</div>
                             <div class="info-line"><span class="info-label">Nombre:</span><span class="info-val" id="fCliente">—</span></div>
                             <div class="info-line"><span class="info-label">Identificación:</span><span class="info-val" id="fIdentificacion">—</span></div>
+                            <div class="info-line"><span class="info-label">Correo:</span><span class="info-val" id="fCorreoCliente">—</span></div>
                         </div>
                         <div>
                             <div class="info-section-title">Emisión</div>
@@ -318,6 +319,7 @@
         // Info
         document.getElementById('fCliente').textContent       = f.cliente              ?? '—';
         document.getElementById('fIdentificacion').textContent= f.identificacionCliente ?? '—';
+        document.getElementById('fCorreoCliente').textContent = f.correoCliente         ?? '—';
         document.getElementById('fSucursal').textContent      = f.sucursal             ?? '—';
         document.getElementById('fUsuario').textContent       = f.usuario              ?? '—';
 

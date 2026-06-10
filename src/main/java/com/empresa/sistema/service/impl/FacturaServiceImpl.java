@@ -689,6 +689,10 @@ public class FacturaServiceImpl implements FacturaService {
         return f.getSnapCliIdentificacion() != null
                 ? f.getSnapCliIdentificacion() : f.getCliente().getIdentificacion();
     }
+    private String snapCorreoCliente(Factura f) {
+        return f.getSnapCliCorreo() != null
+                ? f.getSnapCliCorreo() : f.getCliente().getCorreo();
+    }
     private String snapUsuario(Factura f) {
         return f.getSnapUsuarioNombre() != null
                 ? f.getSnapUsuarioNombre()
@@ -753,6 +757,7 @@ public class FacturaServiceImpl implements FacturaService {
                 .numeroSecuencial(f.getNumeroSecuencial())
                 .cliente(snapCliente(f))
                 .identificacionCliente(snapIdentificacion(f))
+                .correoCliente(snapCorreoCliente(f))
                 .usuario(snapUsuario(f))
                 .sucursal(snapSucursal(f))
                 .idSucursal(f.getSucursal().getIdSucursal())

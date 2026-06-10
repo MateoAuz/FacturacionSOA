@@ -14,6 +14,7 @@ public class FacturaResponseDTO {
     // Datos del cliente
     private String  cliente;
     private String  identificacionCliente;
+    private String  correoCliente;
 
     // Datos de la emisión
     private String  usuario;

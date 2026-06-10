@@ -1527,7 +1527,7 @@ function initPosInput() {
             e.preventDefault();
             if (!_pos.manual) {
                 _pos.manual = true;
-                _pos.str = '0.';
+                _pos.str = (_pos.digits || '0') + '.';
                 _posDisplay();
             }
         } else if (e.key === 'Backspace') {
